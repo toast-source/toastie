@@ -13,62 +13,101 @@ ASEPRITE_PATH = r"C:\Program Files (x86)\Steam\steamapps\common\Aseprite\Aseprit
 
 def select_file(ftypes):
     try:
-        root = tk.Tk(); root.withdraw()
+        root = tk.Tk()
+        root.withdraw()
         path = filedialog.askopenfilename(filetypes=ftypes)
         root.destroy()
         return path
-    except: return None
+    except:
+        return None
 
 class AseAI:
     def __init__(self, master):
         self.master = master
-        self.x, self.y = random.randint(200, 1000), 500
+        self.spawn_x = random.randint(300, 500)
+        self.x, self.y = self.spawn_x, 500
         self.vx = self.vy = 0
         self.grounded = True
         self.facing_right = random.choice([True, False])
-        self.frame_idx = 0; self.anim_timer = 0
-        self.active_tag = None; self.action_queue = []; self.action_end_frame = -1
-        self.ai_timer = random.randint(30, 90); self.decision = "IDLE"
+        self.frame_idx = 0
+        self.anim_timer = 0
+        self.active_tag = None
+        self.action_queue = []
+        self.action_end_frame = -1
+        self.ai_timer = random.randint(30, 90)
+        self.decision = "IDLE"
 
     def update(self, ground_y):
         self.ai_timer -= 1
         if self.ai_timer <= 0:
-            self.decision = random.choice(["IDLE", "WALK_L", "WALK_R", "JUMP", "DASH", "ATTACK"])
-            self.ai_timer = random.randint(30, 120)
-            if self.decision == "ATTACK": self.trigger_action(f"ATTACK {random.randint(1,4)}")
-            elif self.decision == "DASH": self.trigger_action("DASH")
-            elif self.decision == "JUMP" and self.grounded: self.vy = self.master.jump_power; self.grounded = False
+            choices = ["IDLE", "JUMP", "DASH", "ATTACK"]
+            if self.x < self.spawn_x - 200: choices.append("WALK_R")
+            elif self.x > self.spawn_x + 200: choices.append("WALK_L")
+            else: choices += ["WALK_L", "WALK_R"]
+            self.decision = random.choice(choices)
+            self.ai_timer = random.randint(30, 100)
+            if self.decision == "ATTACK":
+                self.trigger_action(f"ComboAttack_{random.randint(1,4)}")
+            elif self.decision == "DASH":
+                self.trigger_action("DASH")
+            elif self.decision == "JUMP" and self.grounded:
+                self.vy = self.master.jump_power
+                self.grounded = False
 
         self.vx *= 0.85
         if not self.active_tag:
-            if self.decision == "WALK_R": self.vx = 4; self.facing_right = True
-            elif self.decision == "WALK_L": self.vx = -4; self.facing_right = False
+            if self.decision == "WALK_R":
+                self.vx = 4
+                self.facing_right = True
+            elif self.decision == "WALK_L":
+                self.vx = -4
+                self.facing_right = False
         
-        if self.active_tag == "DASH": self.vy = 0
-        else: self.vy += self.master.gravity
+        if self.active_tag == "DASH":
+            self.vy = 0
+        else:
+            self.vy += self.master.gravity
 
-        self.x += self.vx; self.y += self.vy
-        if self.y >= ground_y: self.y = ground_y; self.vy = 0; self.grounded = True
+        self.x += self.vx
+        self.y += self.vy
+        if self.y >= ground_y:
+            self.y = ground_y
+            self.vy = 0
+            self.grounded = True
+        
+        if self.vy >= 0:
+            for plat in self.master.platforms:
+                if plat.collidepoint(self.x, self.y) and self.y - self.vy <= plat.top + 10:
+                    self.y = plat.top
+                    self.vy = 0
+                    self.grounded = True
 
         target = None
         if not self.active_tag:
             state = "WALK" if self.grounded and abs(self.vx) > 0.5 else ("IDLE" if self.grounded else ("JUMP" if self.vy < 0 else "FALL"))
             mapped = self.master.mappings.get(state, [])
             target = mapped[0] if mapped and mapped[0] in self.master.tags else None
-        else: target = self.active_tag
+        else:
+            target = self.active_tag
 
         if target and target in self.master.tags:
             t_range = self.master.tags[target]
-            if self.frame_idx < t_range[0] or self.frame_idx > t_range[1]: self.frame_idx = t_range[0]
+            if self.frame_idx < t_range[0] or self.frame_idx > t_range[1]:
+                self.frame_idx = t_range[0]
             self.anim_timer += 1
             if self.anim_timer > 6:
                 self.frame_idx += 1
                 if self.active_tag and self.frame_idx > self.action_end_frame:
-                    if self.action_queue:
+                    if "(loop)" in target.lower():
+                        self.frame_idx = t_range[0]
+                    elif self.action_queue:
                         self.active_tag = self.action_queue.pop(0)
-                        if self.active_tag in self.master.tags: self.frame_idx, self.action_end_frame = self.master.tags[self.active_tag]
-                    else: self.active_tag = None
-                elif self.frame_idx > t_range[1]: self.frame_idx = t_range[0]
+                        if self.active_tag in self.master.tags:
+                            self.frame_idx, self.action_end_frame = self.master.tags[self.active_tag]
+                    else:
+                        self.active_tag = None
+                elif self.frame_idx > t_range[1]:
+                    self.frame_idx = t_range[0]
                 self.anim_timer = 0
 
     def trigger_action(self, slot):
@@ -78,44 +117,94 @@ class AseAI:
             self.active_tag = self.action_queue.pop(0)
             if self.active_tag in self.master.tags:
                 self.frame_idx, self.action_end_frame = self.master.tags[self.active_tag]
-            if slot == "DASH": self.vx = self.master.dash_speed if self.facing_right else -self.master.dash_speed
+            if slot == "DASH":
+                self.vx = self.master.dash_speed if self.facing_right else -self.master.dash_speed
 
 class AsepritePlayer:
     def __init__(self, file_path):
-        self.frames = []; self.tags = {}
+        self.frames = []
+        self.tags = {}
         self.file_name = os.path.basename(file_path)
         self.export_and_load(file_path)
         
         # Physics
-        self.x, self.y = 400, 500; self.vx = self.vy = 0
-        self.grounded = False; self.jumps_left = 2; self.facing_right = True
-        self.zoom = 3.0; self.dash_speed = 35.0; self.jump_power = -18.0; self.gravity = 1.0; self.atk_forward_v = 3.0
+        self.x, self.y = 400, 500
+        self.vx, self.vy = 0, 0
+        self.grounded = False
+        self.jumps_left = 2
+        self.facing_right = True
+        self.zoom = 3.0
+        self.dash_speed = 35.0
+        self.jump_power = -18.0
+        self.gravity = 1.0
+        self.atk_forward_v = 15.0
+        self.powerbomb_speed = 35.0
+        self.pbomb_pause_timer = 0
         
-        # World & Camera
+        # Camera & World
         self.cam_x, self.cam_y = 400, 300
-        self.platforms = [pygame.Rect(200, 350, 200, 20), pygame.Rect(500, 200, 200, 20)]
-        self.bg_img = None; self.bg_offset = [0, 0]; self.bg_zoom = 1.0; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]
+        self.platforms = [
+            pygame.Rect(200, 350, 200, 20),
+            pygame.Rect(500, 200, 200, 20),
+            pygame.Rect(-200, 250, 300, 20),
+            pygame.Rect(900, 300, 400, 20)
+        ]
         
-        # Mapping
+        self.bg_img = None
+        self.bg_offset = [0, 0]
+        self.bg_zoom = 1.0
+        self.bg_color = [15, 15, 18]
+        self.grid_color = [40, 40, 50]
+        
         self.tag_list = sorted(list(self.tags.keys()))
-        self.mappings = { "IDLE": [], "WALK": [], "JUMP": [], "FALL": [], "ATTACK 1": [], "ATTACK 2": [], "ATTACK 3": [], "ATTACK 4": [], "JUMP ATTACK": [], "DASH": [], "SKILL": [], "HURT": [] }
+        self.mappings = { 
+            "IDLE": [], "WALK": [], "JUMP": [], "FALL": [], 
+            "ComboAttack_1": [], "ComboAttack_2": [], "ComboAttack_3": [], "ComboAttack_4": [], 
+            "JUMPATTACK": [], "POWERBOMB": [], "DASH": [], 
+            "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [] 
+        }
         self.auto_map_tags()
         
-        self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0
-        self.active_action_slot = None; self.active_tag = None; self.action_queue = []; self.action_end_frame = -1
-        self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0
-        
-        # AI Management
+        self.frame_idx = 0
+        self.anim_timer = 0
+        self.combo_step = 0
+        self.combo_reset_timer = 0
+        self.active_action_slot = None
+        self.active_tag = None
+        self.action_queue = []
+        self.action_end_frame = -1
+        self.dash_charges = 2
+        self.dash_cooldowns = [0, 0]
+        self.dash_timer = 0
         self.ai_list = [AseAI(self)]
         self.target_ai_count = 1
 
     def auto_map_tags(self):
-        suffix = re.compile(r"(_|\s)?\(?loop\)?", re.IGNORECASE)
+        """슬롯과 태그의 모든 특수문자 및 공백을 무시하고 지능형 매핑"""
+        suffix_clean = re.compile(r"(_|\s)?\(?(ready|loop|end)\)?", re.IGNORECASE)
+        
         for slot in self.mappings.keys():
-            clean = slot.replace(" 1", "").replace(" 2", "").replace(" 3", "").replace(" 4", "").lower()
+            # 슬롯 베이스 이름 정규화 (ComboAttack_1 -> comboattack1)
+            base_slot = slot.lower().replace(" ", "").replace("_", "")
+            
+            matching_tags = []
             for t in self.tag_list:
-                if suffix.sub("", t).lower() == clean or (clean=="walk" and suffix.sub("", t).lower()=="move"):
-                    if t not in self.mappings[slot]: self.mappings[slot].append(t)
+                # 태그 베이스 이름 정규화 (Idle_(Loop) -> idle)
+                name_no_suffix = suffix_clean.sub("", t)
+                base_tag = name_no_suffix.lower().replace(" ", "").replace("_", "")
+                
+                # Special cases: walk/move
+                if base_tag == base_slot or (base_slot == "walk" and base_tag == "move"):
+                    matching_tags.append(t)
+            
+            # Ready -> (Normal/Loop) -> End 순서로 정렬
+            def sort_key(tag_name):
+                t_low = tag_name.lower()
+                if "ready" in t_low: return 0
+                if "end" in t_low: return 2
+                return 1
+            
+            self.mappings[slot] = sorted(matching_tags, key=sort_key)
 
     def export_and_load(self, file_path):
         try:
@@ -131,79 +220,131 @@ class AsepritePlayer:
                 self.frames.append({'img': surf, 'ox': s['x'] - self.orig_w // 2, 'oy': s['y'] - self.orig_h // 2})
             if 'meta' in data and 'frameTags' in data['meta']:
                 for t in data['meta']['frameTags']: self.tags[t['name']] = (t['from'], t['to'])
-        except Exception as e: print(f"Error: {e}")
+        except Exception as e: print(f"Load Error: {e}")
 
-    def trigger_action(self, slot):
+    def handle_attack(self, keys):
+        if not self.grounded:
+            if keys[pygame.K_DOWN]:
+                if self.mappings.get("POWERBOMB"): self.trigger_action("POWERBOMB", keys)
+            elif self.mappings.get("JUMPATTACK"):
+                self.trigger_action("JUMPATTACK", keys)
+        else:
+            slot = f"ComboAttack_{self.combo_step + 1}"
+            if self.mappings.get(slot):
+                self.combo_reset_timer = 60
+                self.trigger_action(slot, keys)
+                self.combo_step = (self.combo_step + 1) % 4
+
+    def trigger_action(self, slot, keys=None):
         tags = self.mappings.get(slot, [])
-        if not tags and slot != "DASH": return # 빈 슬롯 방어 코드 (튕김 방지)
-        
+        if not tags and slot != "DASH": return
         if slot == "DASH" and self.dash_charges > 0:
             self.dash_charges -= 1
             for i in range(2): 
                 if self.dash_cooldowns[i] <= 0: self.dash_cooldowns[i] = 90; break
-            self.dash_timer = 12; self.vx = self.dash_speed if self.facing_right else -self.dash_speed
-            self.vy = 0; self.active_action_slot = "DASH"
-            self.action_queue = list(tags); self.play_next_in_queue()
+            self.dash_timer = 12
+            self.vx = self.dash_speed if self.facing_right else -self.dash_speed
+            self.vy = 0
+            self.active_action_slot = "DASH"
+            self.action_queue = list(tags)
+            self.play_next_in_queue()
             return
-        
         if tags:
-            self.active_action_slot = slot; self.action_queue = list(tags); self.play_next_in_queue()
+            self.active_action_slot = slot
+            self.action_queue = list(tags)
+            if slot == "POWERBOMB": 
+                self.pbomb_pause_timer = 15
+                self.vy = 0
+                self.vx = 0
+            elif "ComboAttack" in slot and keys:
+                if keys[pygame.K_RIGHT]: self.vx = self.atk_forward_v; self.facing_right = True
+                elif keys[pygame.K_LEFT]: self.vx = -self.atk_forward_v; self.facing_right = False
+            self.play_next_in_queue()
 
     def play_next_in_queue(self):
         if self.action_queue:
             self.active_tag = self.action_queue.pop(0)
-            if self.active_tag in self.tags: self.frame_idx, self.action_end_frame = self.tags[self.active_tag]
-            else: self.play_next_in_queue()
-        else: self.active_tag = None; self.active_action_slot = None
+            if self.active_tag in self.tags:
+                self.frame_idx, self.action_end_frame = self.tags[self.active_tag]
+            else:
+                self.play_next_in_queue()
+        else:
+            self.active_tag = None
+            self.active_action_slot = None
 
     def update(self, keys, ground_y, play_w, play_h):
-        # AI Count Adjustment
         while len(self.ai_list) < self.target_ai_count: self.ai_list.append(AseAI(self))
         while len(self.ai_list) > self.target_ai_count: self.ai_list.pop()
-
         for i in range(2):
             if self.dash_cooldowns[i] > 0:
                 self.dash_cooldowns[i] -= 1
                 if self.dash_cooldowns[i] <= 0: self.dash_charges = min(2, self.dash_charges + 1)
-
-        if self.dash_timer > 0:
-            self.dash_timer -= 1; self.vy = 0
+        
+        if self.pbomb_pause_timer > 0:
+            self.pbomb_pause_timer -= 1
+            self.vy = 0
+            if self.pbomb_pause_timer == 0: self.vy = self.powerbomb_speed
+        elif self.dash_timer > 0:
+            self.dash_timer -= 1
+            self.vy = 0
         else:
             self.vx *= 0.82
             if not self.active_tag:
                 if keys[pygame.K_RIGHT]: self.vx = 6.5; self.facing_right = True
                 elif keys[pygame.K_LEFT]: self.vx = -6.5; self.facing_right = False
-            else:
-                if "ATTACK" in str(self.active_action_slot):
-                    if keys[pygame.K_RIGHT]: self.vx = self.atk_forward_v; self.facing_right = True
-                    elif keys[pygame.K_LEFT]: self.vx = -self.atk_forward_v; self.facing_right = False
             self.vy += self.gravity
 
-        self.x += self.vx; self.y += self.vy
-        if self.y >= ground_y: self.y = ground_y; self.vy = 0; self.grounded = True; self.jumps_left = 2
+        self.x += self.vx
+        self.y += self.vy
+        self.grounded = False
+        if self.y >= ground_y:
+            self.y = ground_y
+            self.vy = 0
+            self.grounded = True
+            self.jumps_left = 2
+            if self.active_action_slot == "POWERBOMB":
+                self.active_action_slot = None
+                self.active_tag = None
+        if self.vy >= 0:
+            for plat in self.platforms:
+                if plat.collidepoint(self.x, self.y) and self.y - self.vy <= plat.top + 10:
+                    self.y = plat.top
+                    self.vy = 0
+                    self.grounded = True
+                    self.jumps_left = 2
+                    if self.active_action_slot == "POWERBOMB":
+                        self.active_action_slot = None
+                        self.active_tag = None
         
         self.cam_x += (self.x - self.cam_x) * 0.12
-        self.cam_y += (self.y - self.cam_y) * 0.12
+        if self.grounded: self.cam_y += (self.y - self.cam_y) * 0.3
+        else: self.cam_y += (self.y - self.cam_y) * 0.12
+        
         if self.combo_reset_timer > 0:
             self.combo_reset_timer -= 1
             if self.combo_reset_timer <= 0: self.combo_step = 0
-
+        
         if not self.active_tag:
             state = "WALK" if self.grounded and abs(self.vx) > 0.5 else ("IDLE" if self.grounded else ("JUMP" if self.vy < 0 else "FALL"))
             target_list = self.mappings.get(state, [])
             target = target_list[0] if target_list and target_list[0] in self.tags else None
-        else: target = self.active_tag
-
+        else:
+            target = self.active_tag
+            
         if target and target in self.tags:
             t_range = self.tags[target]
-            if self.frame_idx < t_range[0] or self.frame_idx > t_range[1]: self.frame_idx = t_range[0]
+            if self.frame_idx < t_range[0] or self.frame_idx > t_range[1]:
+                self.frame_idx = t_range[0]
             self.anim_timer += 1
             if self.anim_timer > 6:
                 self.frame_idx += 1
                 if self.active_tag and self.frame_idx > self.action_end_frame:
-                    if "(loop)" in target.lower(): self.frame_idx = t_range[0]
-                    else: self.play_next_in_queue()
-                elif self.frame_idx > t_range[1]: self.frame_idx = t_range[0]
+                    if "(loop)" in target.lower():
+                        self.frame_idx = t_range[0]
+                    else:
+                        self.play_next_in_queue()
+                elif self.frame_idx > t_range[1]:
+                    self.frame_idx = t_range[0]
                 self.anim_timer = 0
         for ai in self.ai_list: ai.update(ground_y)
 
@@ -214,15 +355,26 @@ class AsepritePlayer:
         sw, sh = int(img.get_width() * self.zoom), int(img.get_height() * self.zoom)
         scaled = pygame.transform.scale(img, (sw, sh))
         ox, oy = f['ox'] * self.zoom, f['oy'] * self.zoom
-        if not facing_right: scaled = pygame.transform.flip(scaled, True, False); ox = -ox - sw
+        if not facing_right:
+            scaled = pygame.transform.flip(scaled, True, False)
+            ox = -ox - sw
         screen.blit(scaled, (int(cx + (x - cam_x) * self.zoom + ox), int(cy + (y - cam_y) * self.zoom + oy)))
 
     def draw(self, screen, play_w, play_h):
         cx, cy = play_w // 2, play_h // 2
-        gx = cx - (self.cam_x % 100) * self.zoom; gy = cy - (self.cam_y % 100) * self.zoom
+        gx = cx - (self.cam_x % 100) * self.zoom
+        gy = cy - (self.cam_y % 100) * self.zoom
         for i in range(-10, 20):
             pygame.draw.line(screen, self.grid_color, (gx + i*100*self.zoom, 0), (gx + i*100*self.zoom, play_h), 1)
             pygame.draw.line(screen, self.grid_color, (0, gy + i*100*self.zoom), (play_w, gy + i*100*self.zoom), 1)
+        if self.bg_img:
+            bw, bh = int(self.bg_img.get_width() * self.bg_zoom * self.zoom * 0.2), int(self.bg_img.get_height() * self.bg_zoom * self.zoom * 0.2)
+            b_scaled = pygame.transform.scale(self.bg_img, (bw, bh))
+            screen.blit(b_scaled, (cx + (self.bg_offset[0] - self.cam_x*0.1)*self.zoom, cy + (self.bg_offset[1] - self.cam_y*0.1)*self.zoom))
+        for plat in self.platforms:
+            dx = cx + (plat.x - self.cam_x) * self.zoom
+            dy = cy + (plat.y - self.cam_y) * self.zoom
+            pygame.draw.rect(screen, (80, 80, 100), (dx, dy, plat.width * self.zoom, plat.height * self.zoom), border_radius=int(3*self.zoom))
         pygame.draw.line(screen, (100, 100, 100), (cx + (0-self.cam_x)*self.zoom, cy + (500-self.cam_y)*self.zoom), (cx + (5000-self.cam_x)*self.zoom, cy + (500-self.cam_y)*self.zoom), 2)
         if self.frames:
             self.draw_sprite(screen, self.x, self.y, self.frame_idx, self.facing_right, self.cam_x, self.cam_y, cx, cy)
@@ -230,24 +382,45 @@ class AsepritePlayer:
                 self.draw_sprite(screen, ai.x, ai.y, ai.frame_idx, ai.facing_right, self.cam_x, self.cam_y, cx, cy)
                 adx, ady = (ai.x - self.cam_x)*self.zoom, (ai.y - self.cam_y)*self.zoom
                 if abs(adx) > play_w//2 or abs(ady) > play_h//2:
-                    angle = math.atan2(ady, adx); px = cx + math.cos(angle)*(play_w//2-40); py = cy + math.sin(angle)*(play_h//2-40)
-                    pygame.draw.circle(screen, (220, 38, 38), (int(px), int(py)), 12); pygame.draw.line(screen, (255,255,255), (px, py), (px-math.cos(angle)*8, py-math.sin(angle)*8), 2)
+                    angle = math.atan2(ady, adx)
+                    px = cx + math.cos(angle)*(play_w//2-40)
+                    py = cy + math.sin(angle)*(play_h//2-40)
+                    pygame.draw.circle(screen, (220, 38, 38), (int(px), int(py)), 12)
+                    pygame.draw.line(screen, (255,255,255), (px, py), (px-math.cos(angle)*8, py-math.sin(angle)*8), 2)
 
 def main():
-    pygame.init(); screen = pygame.display.set_mode((1300, 850), pygame.RESIZABLE)
-    pygame.display.set_caption("Aseprite Pro Master v11"); clock = pygame.time.Clock(); player = None; selected_slot = None; show_settings = False
-    slot_scroll = 0; tag_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True)
+    pygame.init()
+    screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE)
+    pygame.display.set_caption("Aseprite Pro World Master v16")
+    clock = pygame.time.Clock()
+    player = None
+    selected_slot = None
+    show_settings = False
+    slot_scroll = 0
+    tag_scroll = 0
+    font_s = pygame.font.SysFont("Arial", 12)
+    font_b = pygame.font.SysFont("Arial", 14, bold=True)
 
     while True:
-        sw, sh = screen.get_size(); sidebar_w = 400; play_w = sw - sidebar_w; play_h = sh - 40; m_pos = pygame.mouse.get_pos()
+        sw, sh = screen.get_size()
+        sidebar_w = 450
+        play_w = sw - sidebar_w
+        play_h = sh - 40
+        m_pos = pygame.mouse.get_pos()
         bg_col = player.bg_color if player else [15, 15, 18]
-        screen.fill(bg_col); pygame.draw.rect(screen, (25, 25, 30), (play_w, 0, sidebar_w, sh))
-        settings_btn = pygame.Rect(play_w - 120, 20, 110, 40); open_btn = pygame.Rect(play_w + 20, 20, sidebar_w - 40, 40)
+        screen.fill(bg_col)
+        pygame.draw.rect(screen, (25, 25, 30), (play_w, 0, sidebar_w, sh))
+        settings_btn = pygame.Rect(play_w - 120, 20, 110, 40)
+        open_btn = pygame.Rect(play_w + 20, 20, sidebar_w - 40, 40)
 
         for event in pygame.event.get():
-            if event.type == pygame.QUIT: pygame.quit(); sys.exit()
-            if event.type == pygame.VIDEORESIZE: screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
-            if event.type == pygame.DROPFILE: player = AsepritePlayer(event.file)
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.VIDEORESIZE:
+                screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+            if event.type == pygame.DROPFILE:
+                player = AsepritePlayer(event.file)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if play_w < m_pos[0] < sw:
                     if m_pos[1] < 450:
@@ -267,16 +440,25 @@ def main():
                             if rect.collidepoint(m_pos) and 80 < rect.top < 450: selected_slot = action
                         if selected_slot:
                             for idx, tag in enumerate(player.tag_list):
-                                t_rect = pygame.Rect(play_w + 20, 500 + idx*25 + tag_scroll, sidebar_w - 40, 22)
-                                if t_rect.collidepoint(m_pos) and t_rect.top >= 480:
+                                t_rect = pygame.Rect(play_w + 20, 480 + idx*25 + tag_scroll, sidebar_w - 40, 22)
+                                if t_rect.collidepoint(m_pos) and t_rect.top >= 475:
                                     if tag in player.mappings[selected_slot]: player.mappings[selected_slot].remove(tag)
                                     else: player.mappings[selected_slot].append(tag)
+                if event.button == 3 and player:
+                    for i, action in enumerate(player.mappings.keys()):
+                        if pygame.Rect(play_w+20, 80+i*38+slot_scroll, sidebar_w-40, 34).collidepoint(m_pos):
+                            player.mappings[action] = []
             if event.type == pygame.KEYDOWN and player:
                 if event.key == pygame.K_SPACE or event.key == pygame.K_UP:
-                    if player.jumps_left > 0: player.vy = player.jump_power; player.grounded = False; player.jumps_left -= 1
-                if event.key == pygame.K_z: player.handle_attack()
+                    if player.jumps_left > 0:
+                        player.vy = player.jump_power
+                        player.grounded = False
+                        player.jumps_left -= 1
+                if event.key == pygame.K_z: player.handle_attack(pygame.key.get_pressed())
                 if event.key == pygame.K_x: player.trigger_action("DASH")
-                if event.key == pygame.K_c: player.trigger_action("SKILL")
+                if event.key == pygame.K_c: player.trigger_action("SKILL 1")
+                if event.key == pygame.K_b: player.trigger_action("SKILL 2")
+                if event.key == pygame.K_n: player.trigger_action("SKILL 3")
                 if event.key == pygame.K_v: player.trigger_action("HURT")
             if event.type == pygame.MOUSEWHEEL and player and m_pos[0] < play_w:
                 player.zoom = max(0.1, min(player.zoom + event.y * 0.2, 20.0))
@@ -284,26 +466,59 @@ def main():
         if player:
             player.update(pygame.key.get_pressed(), 500, play_w, play_h)
             player.draw(screen, play_w, play_h)
-            # HUD/Settings
+            for i in range(2):
+                col = (59, 130, 246) if i < player.dash_charges else (60, 60, 70)
+                pygame.draw.rect(screen, col, (20 + i*35, 20, 30, 10), border_radius=3)
             pygame.draw.rect(screen, (25, 25, 30), (play_w, 0, sidebar_w, sh))
             if show_settings:
                 pygame.draw.rect(screen, (35, 35, 40), (play_w, 0, sidebar_w, sh))
                 pygame.draw.line(screen, (59, 130, 246), (play_w, 0), (play_w, sh), 2)
                 screen.blit(font_b.render("SETTINGS PANEL", True, (59, 130, 246)), (play_w + 20, 20))
-                # AI Count Slider
-                screen.blit(font_s.render(f"AI Count: {player.target_ai_count}", True, (200,200,200)), (play_w + 20, 60))
-                ai_sl = pygame.Rect(play_w + 20, 80, sidebar_w - 40, 8); pygame.draw.rect(screen, (60, 60, 70), ai_sl)
-                pygame.draw.circle(screen, (59, 130, 246), (int(play_w + 20 + (player.target_ai_count/10)*(sidebar_w-40)), 84), 8)
-                if pygame.mouse.get_pressed()[0] and ai_sl.inflate(0, 20).collidepoint(m_pos):
-                    player.target_ai_count = int((m_pos[0] - (play_w+20))/(sidebar_w-40)*10)
-                # Other settings (Atk, Grid etc.)
-                screen.blit(font_s.render(f"Atk Forward Power: {player.atk_forward_v:.1f}", True, (200,200,200)), (play_w + 20, 110))
-                at_sl = pygame.Rect(play_w + 20, 130, sidebar_w - 40, 8); pygame.draw.rect(screen, (60, 60, 70), at_sl)
-                pygame.draw.circle(screen, (220, 38, 38), (int(play_w + 20 + (player.atk_forward_v/15)*(sidebar_w-40)), 134), 8)
-                if pygame.mouse.get_pressed()[0] and at_sl.inflate(0, 20).collidepoint(m_pos):
-                    player.atk_forward_v = (m_pos[0] - (play_w+20))/(sidebar_w-40)*15
+                bg_btn = pygame.Rect(play_w + 20, 60, 150, 30)
+                pygame.draw.rect(screen, (100, 100, 110), bg_btn, border_radius=5)
+                screen.blit(font_b.render("LOAD BG IMG", True, (255,255,255)), (bg_btn.x+25, bg_btn.y+5))
+                if pygame.mouse.get_pressed()[0] and bg_btn.collidepoint(m_pos):
+                    p = select_file([("Image", "*.png *.jpg *.bmp")])
+                    if p: player.bg_img = pygame.image.load(p).convert_alpha()
+                
+                sliders = [
+                    ("Dash Vel", 10, 50, "dash_speed", False),
+                    ("Jump Pow", 10, 25, "jump_power", True),
+                    ("PBomb Spd", 10, 60, "powerbomb_speed", False),
+                    ("AI Count", 0, 10, "target_ai_count", False),
+                    ("Atk Forward", 0, 30, "atk_forward_v", False),
+                    ("BG Scale", 0.1, 5, "bg_zoom", False),
+                    ("BG-X", -1000, 1000, "bg_offset_x", False),
+                    ("BG-Y", -1000, 1000, "bg_offset_y", False)
+                ]
+                if not hasattr(player, "bg_offset_x"): 
+                    player.bg_offset_x = player.bg_offset[0]
+                    player.bg_offset_y = player.bg_offset[1]
+
+                for i, (lab, mn, mx, attr, inv) in enumerate(sliders):
+                    y_pos = 110 + i*42
+                    screen.blit(font_s.render(lab, True, (150,150,150)), (play_w+20, y_pos))
+                    sl = pygame.Rect(play_w+20, y_pos+18, sidebar_w-40, 8)
+                    pygame.draw.rect(screen, (60, 60, 70), sl)
+                    val = getattr(player, attr)
+                    if inv: val = -val
+                    norm = (val-mn)/(mx-mn)
+                    pygame.draw.circle(screen, (59, 130, 246), (int(play_w+20 + norm*(sidebar_w-40)), y_pos+22), 8)
+                    if pygame.mouse.get_pressed()[0] and sl.inflate(0, 20).collidepoint(m_pos):
+                        nv = mn + ((m_pos[0] - (play_w+20))/(sidebar_w-40))*(mx-mn)
+                        if inv: nv = -nv
+                        setattr(player, attr, nv)
+                        if attr == "bg_offset_x": player.bg_offset[0] = nv
+                        if attr == "bg_offset_y": player.bg_offset[1] = nv
+                
+                screen.blit(font_b.render("GRID COLOR (RGB)", True, (200,200,200)), (play_w + 20, 450))
+                for i, c in enumerate(['R','G','B']):
+                    sl = pygame.Rect(play_w+20, 480+i*35, sidebar_w-40, 8)
+                    pygame.draw.rect(screen, (60,60,70), sl)
+                    pygame.draw.circle(screen, (220,38,38) if i==0 else (22,163,74) if i==1 else (59,130,246), (int(play_w+20 + (player.bg_color[i]/255)*(sidebar_w-40)), 484+i*35), 8)
+                    if pygame.mouse.get_pressed()[0] and sl.inflate(0, 20).collidepoint(m_pos):
+                        player.bg_color[i] = int((m_pos[0]-(play_w+20))/(sidebar_w-40)*255)
             else:
-                # Normal Mapping Slots
                 slot_clip = pygame.Surface((sidebar_w - 20, 380), pygame.SRCALPHA)
                 for i, action in enumerate(player.mappings.keys()):
                     rect = pygame.Rect(10, i*38 + slot_scroll, sidebar_w - 40, 34)
@@ -311,13 +526,29 @@ def main():
                     pygame.draw.rect(slot_clip, col, rect, border_radius=5)
                     slot_clip.blit(font_b.render(action, True, (255,255,255)), (rect.x+10, rect.y+3))
                     tags_str = ", ".join(player.mappings[action])
-                    slot_clip.blit(font_s.render(f"-> {tags_str[:40]}", True, (200,200,200)), (rect.x+10, rect.y+18))
+                    slot_clip.blit(font_s.render(f"-> {tags_str[:45]}", True, (200,200,200)), (rect.x+10, rect.y+18))
                 screen.blit(slot_clip, (play_w + 10, 85))
+                list_area = pygame.Rect(play_w + 15, 475, sidebar_w - 30, sh - 490)
+                pygame.draw.rect(screen, (20, 20, 25), list_area, border_radius=5)
+                screen.blit(font_b.render(f"TAG LIST FOR {selected_slot}", True, (100,100,100)), (play_w + 20, 455))
+                clip_surf = pygame.Surface((sidebar_w - 40, sh - 495), pygame.SRCALPHA)
+                for idx, tag in enumerate(player.tag_list):
+                    t_rect = pygame.Rect(0, idx*25 + tag_scroll, sidebar_w - 40, 22)
+                    is_mapped = selected_slot and tag in player.mappings[selected_slot]
+                    hvr = t_rect.move(play_w+20, 475).collidepoint(m_pos)
+                    t_col = (59, 130, 246) if is_mapped else ((70, 70, 80) if hvr else (40, 40, 45))
+                    pygame.draw.rect(clip_surf, t_col, t_rect, border_radius=3)
+                    clip_surf.blit(font_s.render(tag, True, (255,255,255)), (t_rect.x+10, t_rect.y+4))
+                screen.blit(clip_surf, (play_w + 20, 475))
             pygame.draw.rect(screen, (30, 30, 35), (0, sh-40, play_w, 40))
-            guide = "Move: Arrows | Jump: Space | Attack: Z | Dash: X | Skill: C | Zoom: Wheel"
+            guide = "Walk: Arrows | Jump: Space | Atk: Z | PBomb: Down+Z | Dash: X | Skill: C,B,N | Zoom: Wheel"
             screen.blit(font_s.render(guide, True, (255, 255, 255)), (20, sh-25))
-        pygame.draw.rect(screen, (50, 50, 60), settings_btn, border_radius=5); screen.blit(font_b.render("⚙ SETTINGS", True, (255,255,255)), (settings_btn.x+15, settings_btn.y+10))
-        pygame.draw.rect(screen, (59, 130, 246), open_btn, border_radius=5); screen.blit(font_b.render("OPEN ASEPRITE", True, (255,255,255)), (open_btn.centerx-55, open_btn.y+12))
-        pygame.display.flip(); clock.tick(60)
+        pygame.draw.rect(screen, (50, 50, 60), settings_btn, border_radius=5)
+        screen.blit(font_b.render("⚙ SETTINGS", True, (255,255,255)), (settings_btn.x+15, settings_btn.y+10))
+        pygame.draw.rect(screen, (59, 130, 246), open_btn, border_radius=5)
+        screen.blit(font_b.render("OPEN ASEPRITE", True, (255,255,255)), (open_btn.centerx-55, open_btn.y+12))
+        pygame.display.flip()
+        clock.tick(60)
+
 if __name__ == "__main__":
     main()
