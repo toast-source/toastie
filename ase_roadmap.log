@@ -1,24 +1,24 @@
 # Aseprite Viewer Project Roadmap (Started: 2026-02-12)
 Current Version: v33 (Stable) - GitHub Uploaded
 
-## [CURRENT STATUS - v37]
+## [CURRENT STATUS - v38 (Final Roadmap Version)]
 - Hybrid Profile System: Independent Player/NPC management.
 - Combat: Max 2-stack combo buffering, Dash cancel, Multi-step combo movement.
 - Movement: Physics-based movement with adjustable Attack Forward.
 - Camera: Vertical offset, Right-drag, Manual/Auto toggle.
 - Playback: Full control (Pause, Step, Speed, Refresh).
-- Hitbox: Slice visualization with persistent keys.
-- Watch Mode: Real-time Aseprite monitoring.
-- Juice & VFX: Screen Shake (impact-based), Dash After-images.
-- Persistence: All settings (Physics, Combat, VFX, BG) auto-saved/loaded via JSON.
+- Hitbox: Slice visualization with persistent keys (H toggle).
+- Watch Mode: Real-time Aseprite monitoring (F5 manual support).
+- Juice & VFX: Screen Shake (impact-based), Dash After-images (adjustable).
+- Persistence: All physics/VFX settings auto-saved via JSON.
+- Layers: Individual layer visibility toggling within Settings.
 
-## [PLANNED IMPROVEMENTS]
+## [COMPLETED IMPROVEMENTS]
 1. WATCH MODE (Completed - v34)
 2. HITBOX/SLICE VISUALIZER (Completed - v35)
 3. JUICE & VFX (Completed - v36)
 4. SETTINGS PERSISTENCE (Completed - v37)
-5. LAYER MANAGEMENT:
-   - Optional layer filtering during export to toggle equipment/visuals.
+5. LAYER MANAGEMENT (Completed - v38)
    - Screen Shake on heavy hits (Combo 4, Powerbomb).
    - Simple ghosting/after-image effects for Dash.
 

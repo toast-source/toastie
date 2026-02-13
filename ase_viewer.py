@@ -84,8 +84,21 @@ class AseSource:
     def __init__(self, file_path, source_id):
         self.id = source_id; self.file_path = os.path.abspath(file_path); self.name = os.path.basename(file_path)
         self.frames = []; self.tags = {}; self.tag_list = []; self.slices = {}; self.orig_w = self.orig_h = 0
+        self.layers = []; self.visible_layers = set()
         self.last_mtime = os.path.getmtime(self.file_path)
+        self.fetch_layers()
         self.export_and_load()
+    def fetch_layers(self):
+        try:
+            exe = ase_manager.get_path()
+            startupinfo = subprocess.STARTUPINFO(); startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            res = subprocess.run([exe, "-b", "--list-layers", self.file_path], check=True, capture_output=True, text=True, startupinfo=startupinfo)
+            self.layers = [l.strip() for l in res.stdout.split("\n") if l.strip()]
+            self.visible_layers = set(self.layers) # Default all visible
+            log_debug(f"[LAYERS] Found in {self.name}: {self.layers}")
+        except Exception as e: 
+            log_debug(f"[ERROR] Fetch layers failed for {self.name}: {e}")
+            self.layers = []
     def check_for_reload(self):
         try:
             current_mtime = os.path.getmtime(self.file_path)
@@ -100,10 +113,18 @@ class AseSource:
         self.frames = []; self.tags = {}; self.slices = {}
         try:
             exe = ase_manager.get_path()
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            subprocess.run([exe, "-b", self.file_path, "--trim", "--sheet", png_p, "--data", json_p, "--format", "json-array", "--list-tags", "--list-slices"], 
-                           check=True, capture_output=True, startupinfo=startupinfo)
+            startupinfo = subprocess.STARTUPINFO(); startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            # Build command: options first, then layers, then file
+            cmd = [exe, "-b"]
+            # If not all layers are visible, specify which ones to include
+            if len(self.visible_layers) < len(self.layers):
+                for l in self.layers:
+                    if l in self.visible_layers:
+                        cmd.extend(["--layer", l])
+            
+            cmd.extend([self.file_path, "--trim", "--sheet", png_p, "--data", json_p, "--format", "json-array", "--list-tags", "--list-slices"])
+            
+            subprocess.run(cmd, check=True, capture_output=True, startupinfo=startupinfo)
             sheet = pygame.image.load(png_p).convert_alpha()
             with open(json_p, 'r', encoding='utf-8') as f: data = json.load(f)
             self.orig_w, self.orig_h = data['frames'][0]['sourceSize']['w'], data['frames'][0]['sourceSize']['h']
@@ -115,10 +136,9 @@ class AseSource:
                 if 'frameTags' in data['meta']:
                     for t in data['meta']['frameTags']: self.tags[t['name']] = (t['from'], t['to'])
                 if 'slices' in data['meta']:
-                    for s in data['meta']['slices']:
-                        self.slices[s['name']] = s['keys']
+                    for s in data['meta']['slices']: self.slices[s['name']] = s['keys']
             self.tag_list = sorted(list(self.tags.keys()))
-            log_debug(f"[LOAD] {self.name} (Slices: {len(self.slices)}) Success.")
+            log_debug(f"[LOAD] {self.name} (Layers: {len(self.layers)}) Success.")
         except Exception as e: 
             log_debug(f"[ERROR] Load failed for {self.name}: {e}")
             self.frames = [{'img': pygame.Surface((32,32), pygame.SRCALPHA), 'ox':0, 'oy':0, 'duration':100}]
@@ -426,7 +446,7 @@ class AsepritePlayer:
 
 def main():
     pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE); clock = pygame.time.Clock(); player = None; selected_slot = None; show_settings = False; slot_scroll = 0; tag_scroll = 0; settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0)
-    folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "BG IMAGE": True, "BG COLOR": True}
+    folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "BG IMAGE": True, "BG COLOR": True}
     while True:
         dt = clock.tick(60); sw, sh = screen.get_size(); sidebar_w = 450; play_w = sw - sidebar_w; play_h = sh - 70; m_pos = pygame.mouse.get_pos(); bg_col = player.bg_color if player else [15, 15, 18]; screen.fill(bg_col)
         if player: player.update(pygame.key.get_pressed(), 500, dt); player.draw(screen, play_w, play_h)
@@ -541,6 +561,24 @@ def main():
                                 player._btn_lock -= 1
                                 if player._btn_lock <= 0: delattr(player, "_btn_lock")
                             cy += 130
+                        elif cat == "LAYERS":
+                            src = player.sources[min(player.cur_source_idx, len(player.sources)-1)]
+                            if not src.layers:
+                                set_surf.blit(font_s.render("No layers found or multi-layer not supported", True, (100,100,100)), (20, cy)); cy += 30
+                            for l_name in src.layers:
+                                ly = cy; is_vis = l_name in src.visible_layers
+                                l_rect = pygame.Rect(15, ly-2, sidebar_w-30, 24); hvr = pygame.Rect(play_w+15, ly-2, sidebar_w-30, 24).collidepoint(m_pos)
+                                if hvr: pygame.draw.rect(set_surf, (60,60,70), l_rect, border_radius=4)
+                                pygame.draw.rect(set_surf, (22, 163, 74) if is_vis else (60, 60, 70), (20, ly+2, 16, 16), border_radius=3)
+                                set_surf.blit(font_s.render(l_name[:30], True, (255,255,255) if is_vis else (150,150,150)), (45, ly+2))
+                                if pygame.mouse.get_pressed()[0] and hvr:
+                                    if not hasattr(player, "_btn_lock"):
+                                        if is_vis: src.visible_layers.remove(l_name)
+                                        else: src.visible_layers.add(l_name)
+                                        src.export_and_load(); player.auto_map_profile(player.profiles[player.cur_profile_idx])
+                                        player._btn_lock = 15
+                                cy += 28
+                            cy += 10
                         elif cat == "BG IMAGE":
                             bg_btn = pygame.Rect(20, cy, 150, 30); pygame.draw.rect(set_surf, (100,100,110), bg_btn, border_radius=5); set_surf.blit(font_b.render("LOAD BG IMG", True, (255,255,255)), (bg_btn.x+25, bg_btn.y+5))
                             if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20, cy, 150, 30).collidepoint(m_pos):
