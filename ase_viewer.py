@@ -84,9 +84,20 @@ class AseSource:
     def __init__(self, file_path, source_id):
         self.id = source_id; self.file_path = os.path.abspath(file_path); self.name = os.path.basename(file_path)
         self.frames = []; self.tags = {}; self.tag_list = []; self.orig_w = self.orig_h = 0
+        self.last_mtime = os.path.getmtime(self.file_path)
         self.export_and_load()
+    def check_for_reload(self):
+        try:
+            current_mtime = os.path.getmtime(self.file_path)
+            if current_mtime > self.last_mtime:
+                self.last_mtime = current_mtime
+                self.export_and_load()
+                return True
+        except: pass
+        return False
     def export_and_load(self):
         png_p = f"temp_{self.id}.png"; json_p = f"temp_{self.id}.json"
+        self.frames = []; self.tags = {} # Clear existing data
         try:
             exe = ase_manager.get_path()
             startupinfo = subprocess.STARTUPINFO()
@@ -264,6 +275,14 @@ class AsepritePlayer:
             self.active_tag_info = None; self.active_action_slot = None
             self.attack_buffer = 0; self.combo_step = 0; self.combo_reset_timer = 0
     def update(self, keys, ground_y, dt):
+        # Watch Mode: Check for file changes every 60 updates
+        if pygame.time.get_ticks() % 60 == 0:
+            for src in self.sources:
+                if src.check_for_reload():
+                    log_debug(f"[WATCH] {src.name} reloaded due to change.")
+                    # Force remap profiles to capture new tags
+                    for prof in self.profiles: self.auto_map_profile(prof)
+
         if self.swap_timer > 0:
             self.swap_timer -= dt
             if self.swap_timer <= 0: self.x, self.y = self.spawn_x, self.spawn_y; self.visible = True; self.trigger_action("Swap_Enter")
@@ -428,7 +447,12 @@ def main():
             if event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 3: is_dragging_cam = False
             if event.type == pygame.KEYDOWN and player:
-                if event.key in [pygame.K_SPACE, pygame.K_UP] and player.jumps_left > 0: player.vy = player.jump_power; player.grounded = False; player.jumps_left -= 1
+                if event.key == pygame.K_F5:
+                    log_debug("[SYSTEM] Manual Reload Triggered.")
+                    for src in player.sources: src.export_and_load()
+                    for prof in player.profiles: player.auto_map_profile(prof)
+                if event.key in [pygame.K_SPACE, pygame.K_UP] and player.jumps_left > 0:
+                    player.vy = player.jump_power; player.grounded = False; player.jumps_left -= 1
                 if event.key == pygame.K_z: player.handle_attack(pygame.key.get_pressed())
                 if event.key == pygame.K_x: player.trigger_action("DASH")
                 if event.key == pygame.K_c: player.trigger_action("SKILL 1")
@@ -498,7 +522,7 @@ def main():
             for i in range(2):
                 col = (59, 130, 246) if i < player.dash_charges else (60, 60, 70); pygame.draw.rect(screen, col, (play_w - 80 + i*35, sh - 100, 30, 10), border_radius=3)
             pygame.draw.rect(screen, (30, 30, 35), (0, sh-40, play_w, 40)); pygame.draw.line(screen, (50,50,60), (0, sh-40), (play_w, sh-40), 1)
-            controls = [("Z", "Atk"), ("X", "Dash"), ("C/B/N", "Skill"), ("T", "Swap"), ("P", "Pause" if not player.is_paused else "Play", (220,38,38) if player.is_paused else (255,255,255)), ("O", "Step"), ("[ ]", f"Speed:{player.playback_speed:.1f}"), ("R-Drag", "Cam"), ("F", "Reset Cam")]
+            controls = [("Z", "Atk"), ("X", "Dash"), ("C/B/N", "Skill"), ("T", "Swap"), ("P", "Pause" if not player.is_paused else "Play", (220,38,38) if player.is_paused else (255,255,255)), ("O", "Step"), ("[ ]", f"Speed:{player.playback_speed:.1f}"), ("F5", "Refresh"), ("R-Drag", "Cam"), ("F", "Reset Cam")]
             tx = 20
             for k, desc, *extra in controls:
                 col = extra[0] if extra else (255,255,255); pygame.draw.rect(screen, (45,45,50), (tx-5, sh-32, font_h.size(k)[0]+font_h.size(desc)[0]+25, 24), border_radius=4); screen.blit(font_h.render(k, True, (59,130,246)), (tx, sh-27)); screen.blit(font_h.render(f": {desc}", True, col), (tx+font_h.size(k)[0], sh-27)); tx += font_h.size(k)[0]+font_h.size(desc)[0]+35
