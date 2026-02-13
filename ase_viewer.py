@@ -229,6 +229,7 @@ class AsepritePlayer:
         self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1
         self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.swap_timer = 0; self.visible = True
         self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True
+        self.target_w, self.target_h = 640, 360; self.show_viewport = True
         self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 1.0; self.afterimages = []; self.vfx_enabled = True; self.ghost_timer = 0
         self.load_settings()
 
@@ -237,6 +238,7 @@ class AsepritePlayer:
             "physics": {"dash_speed": self.dash_speed, "jump_power": self.jump_power, "powerbomb_speed": self.powerbomb_speed, "cam_v_offset": self.cam_v_offset},
             "combat": {"atk_forward_v": self.atk_forward_v},
             "vfx": {"shake_enabled": self.shake_enabled, "vfx_enabled": self.vfx_enabled, "base_shake": self.base_shake},
+            "viewport": {"show_viewport": self.show_viewport, "target_w": self.target_w, "target_h": self.target_h},
             "bg": {"bg_color": self.bg_color, "bg_alpha": self.bg_alpha, "bg_zoom": self.bg_zoom, "bg_parallax": self.bg_parallax, "bg_off_x": self.bg_off_x, "bg_off_y": self.bg_off_y}
         }
         try:
@@ -451,10 +453,25 @@ class AsepritePlayer:
             if abs(adx)>play_w//2 or abs(ady)>play_h//2:
                 ang = math.atan2(ady, adx); px, py = cx+math.cos(ang)*(play_w//2-40), cy+math.sin(ang)*(play_h//2-40)
                 pygame.draw.circle(screen, (220,38,38), (int(px), int(py)), 12); pygame.draw.line(screen, (255,255,255), (px, py), (px-math.cos(ang)*8, py-math.sin(ang)*8), 2)
+        
+        # Viewport Guide (640x360)
+        if self.show_viewport:
+            vw, vh = self.target_w * self.zoom, self.target_h * self.zoom
+            v_rect = pygame.Rect(cx - vw//2, cy - vh//2, vw, vh)
+            # Draw darkened area outside viewport
+            overlay = pygame.Surface((play_w, play_h), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160)) # Semi-transparent black
+            pygame.draw.rect(overlay, (0, 0, 0, 0), v_rect) # Punch a hole for viewport
+            screen.blit(overlay, (0, 0))
+            # Draw thin border
+            pygame.draw.rect(screen, (255, 255, 255), v_rect, 1)
+            # Label
+            v_txt = pygame.font.SysFont("Arial", 12).render(f"Viewport: {self.target_w}x{self.target_h} (16:9)", True, (255,255,255))
+            screen.blit(v_txt, (v_rect.x, v_rect.y - 18))
 
 def main():
     pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE); clock = pygame.time.Clock(); player = None; selected_slot = None; show_settings = False; slot_scroll = 0; tag_scroll = 0; settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0)
-    folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "BG IMAGE": True, "BG COLOR": True}
+    folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "VIEWPORT": True, "BG IMAGE": True, "BG COLOR": True}
     while True:
         dt = clock.tick(60); sw, sh = screen.get_size(); sidebar_w = 450; play_w = sw - sidebar_w; play_h = sh - 70; m_pos = pygame.mouse.get_pos(); bg_col = player.bg_color if player else [15, 15, 18]; screen.fill(bg_col)
         if player: player.update(pygame.key.get_pressed(), 500, dt); player.draw(screen, play_w, play_h)
@@ -587,6 +604,14 @@ def main():
                                         player._btn_lock = 15
                                 cy += 28
                             cy += 10
+                        elif cat == "VIEWPORT":
+                            y = cy; set_surf.blit(font_s.render("Show 640x360 Guide", True, (150,150,150)), (20, y))
+                            btn = pygame.Rect(sidebar_w-60, y-5, 40, 20); val = player.show_viewport
+                            pygame.draw.rect(set_surf, (59, 130, 246) if val else (60, 60, 70), btn, border_radius=10)
+                            pygame.draw.circle(set_surf, (255,255,255), (btn.x+30 if val else btn.x+10, btn.y+10), 8)
+                            if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+btn.x, y-5, btn.w, btn.h).collidepoint(m_pos):
+                                if not hasattr(player, "_btn_lock"): player.show_viewport = not val; player._btn_lock = 15; player.save_settings()
+                            cy += 40
                         elif cat == "BG IMAGE":
                             bg_btn = pygame.Rect(20, cy, 150, 30); pygame.draw.rect(set_surf, (100,100,110), bg_btn, border_radius=5); set_surf.blit(font_b.render("LOAD BG IMG", True, (255,255,255)), (bg_btn.x+25, bg_btn.y+5))
                             if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20, cy, 150, 30).collidepoint(m_pos):
