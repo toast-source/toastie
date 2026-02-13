@@ -208,6 +208,14 @@ class AseAI:
                         elif self.frame_idx > tr[1]: self.frame_idx = tr[0]
                 else: self.frame_idx = tr[0]
 
+    def trigger_action(self, slot):
+        tags = self.profile.mappings.get(slot, [])
+        if tags:
+            self.active_action_slot = slot
+            self.action_queue = list(tags); self.active_tag_info = self.action_queue.pop(0)
+            src = self.master.sources[self.active_tag_info[0]]; self.frame_idx, self.action_end_frame = src.tags.get(self.active_tag_info[1], (0,0)); self.anim_timer = 0
+            if slot == "DASH": self.vx = 8 if self.facing_right else -8
+
 class AsepritePlayer:
     def __init__(self, initial_path):
         self.sources = []; self.profiles = []; self.cur_profile_idx = 0; self.cur_source_idx = 0
