@@ -83,7 +83,7 @@ def select_file(ftypes):
 class AseSource:
     def __init__(self, file_path, source_id):
         self.id = source_id; self.file_path = os.path.abspath(file_path); self.name = os.path.basename(file_path)
-        self.frames = []; self.tags = {}; self.tag_list = []; self.orig_w = self.orig_h = 0
+        self.frames = []; self.tags = {}; self.tag_list = []; self.slices = {}; self.orig_w = self.orig_h = 0
         self.last_mtime = os.path.getmtime(self.file_path)
         self.export_and_load()
     def check_for_reload(self):
@@ -97,12 +97,12 @@ class AseSource:
         return False
     def export_and_load(self):
         png_p = f"temp_{self.id}.png"; json_p = f"temp_{self.id}.json"
-        self.frames = []; self.tags = {} # Clear existing data
+        self.frames = []; self.tags = {}; self.slices = {}
         try:
             exe = ase_manager.get_path()
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            subprocess.run([exe, "-b", self.file_path, "--trim", "--sheet", png_p, "--data", json_p, "--format", "json-array", "--list-tags"], 
+            subprocess.run([exe, "-b", self.file_path, "--trim", "--sheet", png_p, "--data", json_p, "--format", "json-array", "--list-tags", "--list-slices"], 
                            check=True, capture_output=True, startupinfo=startupinfo)
             sheet = pygame.image.load(png_p).convert_alpha()
             with open(json_p, 'r', encoding='utf-8') as f: data = json.load(f)
@@ -111,10 +111,14 @@ class AseSource:
                 r, s = f['frame'], f['spriteSourceSize']
                 surf = pygame.Surface((r['w'], r['h']), pygame.SRCALPHA); surf.blit(sheet, (0, 0), (r['x'], r['y'], r['w'], r['h']))
                 self.frames.append({'img': surf, 'ox': s['x'] - self.orig_w // 2, 'oy': s['y'] - self.orig_h // 2, 'duration': f.get('duration', 100)})
-            if 'meta' in data and 'frameTags' in data['meta']:
-                for t in data['meta']['frameTags']: self.tags[t['name']] = (t['from'], t['to'])
+            if 'meta' in data:
+                if 'frameTags' in data['meta']:
+                    for t in data['meta']['frameTags']: self.tags[t['name']] = (t['from'], t['to'])
+                if 'slices' in data['meta']:
+                    for s in data['meta']['slices']:
+                        self.slices[s['name']] = s['keys']
             self.tag_list = sorted(list(self.tags.keys()))
-            log_debug(f"[LOAD] {self.name} Success.")
+            log_debug(f"[LOAD] {self.name} (Slices: {len(self.slices)}) Success.")
         except Exception as e: 
             log_debug(f"[ERROR] Load failed for {self.name}: {e}")
             self.frames = [{'img': pygame.Surface((32,32), pygame.SRCALPHA), 'ox':0, 'oy':0, 'duration':100}]
@@ -199,7 +203,7 @@ class AsepritePlayer:
         self.cam_x, self.cam_y = 400, 300; self.cam_follow = True; self.cam_v_offset = -120; self.platforms = [pygame.Rect(200, 350, 200, 20), pygame.Rect(500, 200, 200, 20), pygame.Rect(-200, 250, 300, 20), pygame.Rect(900, 300, 400, 20)]
         self.bg_img = None; self.bg_off_x = self.bg_off_y = 0; self.bg_zoom = 1.0; self.bg_alpha = 255; self.bg_parallax = 0.1; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]
         self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.swap_timer = 0; self.visible = True
-        self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False
+        self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True
 
     def add_source(self, path):
         try:
@@ -347,6 +351,27 @@ class AsepritePlayer:
         ox, oy = f['ox']*self.zoom, f['oy']*self.zoom
         if not facing_right: scaled = pygame.transform.flip(scaled, True, False); ox = -ox - scaled.get_width()
         screen.blit(scaled, (int(cx + (x - cam_x)*self.zoom + ox), int(cy + (y - cam_y)*self.zoom + oy)))
+        # Draw Slices (Hitboxes)
+        if self.show_hitboxes:
+            for name, keys in src.slices.items():
+                # Find the active key for current f_idx (the key with largest frame <= f_idx)
+                active_key = None
+                for key in keys:
+                    if key['frame'] <= f_idx:
+                        if active_key is None or key['frame'] > active_key['frame']:
+                            active_key = key
+                
+                if active_key:
+                    b = active_key['bounds']; sx = cx + (x - cam_x) * self.zoom; sy = cy + (y - cam_y) * self.zoom
+                    final_x = sx + (b['x'] - src.orig_w // 2) * self.zoom
+                    final_y = sy + (b['y'] - src.orig_h // 2) * self.zoom
+                    final_w = b['w'] * self.zoom; final_h = b['h'] * self.zoom
+                    if not facing_right: final_x = sx - (b['x'] - src.orig_w // 2 + b['w']) * self.zoom
+                    col = (220, 38, 38) if "hit" in name.lower() else (22, 163, 74)
+                    pygame.draw.rect(screen, col, (final_x, final_y, final_w, final_h), 2)
+                    if self.zoom > 1.5:
+                        txt = pygame.font.SysFont("Arial", 10).render(name, True, col)
+                        screen.blit(txt, (final_x, final_y - 12))
     def draw(self, screen, play_w, play_h):
         cx, cy = play_w // 2, play_h // 2
         gx, gy = cx - (self.cam_x % 100)*self.zoom, cy - (self.cam_y % 100)*self.zoom
@@ -461,6 +486,7 @@ def main():
                 if event.key == pygame.K_v: player.trigger_action("HURT")
                 if event.key == pygame.K_t: player.trigger_action("Swap_Exit")
                 if event.key == pygame.K_f: player.cam_follow = True
+                if event.key == pygame.K_h: player.show_hitboxes = not player.show_hitboxes
                 if event.key == pygame.K_p: player.is_paused = not player.is_paused
                 if event.key == pygame.K_o: player.step_forward = True
                 if event.key == pygame.K_LEFTBRACKET: player.playback_speed = max(0.1, player.playback_speed - 0.1)
@@ -522,7 +548,7 @@ def main():
             for i in range(2):
                 col = (59, 130, 246) if i < player.dash_charges else (60, 60, 70); pygame.draw.rect(screen, col, (play_w - 80 + i*35, sh - 100, 30, 10), border_radius=3)
             pygame.draw.rect(screen, (30, 30, 35), (0, sh-40, play_w, 40)); pygame.draw.line(screen, (50,50,60), (0, sh-40), (play_w, sh-40), 1)
-            controls = [("Z", "Atk"), ("X", "Dash"), ("C/B/N", "Skill"), ("T", "Swap"), ("P", "Pause" if not player.is_paused else "Play", (220,38,38) if player.is_paused else (255,255,255)), ("O", "Step"), ("[ ]", f"Speed:{player.playback_speed:.1f}"), ("F5", "Refresh"), ("R-Drag", "Cam"), ("F", "Reset Cam")]
+            controls = [("Z", "Atk"), ("X", "Dash"), ("C/B/N", "Skill"), ("T", "Swap"), ("P", "Pause" if not player.is_paused else "Play", (220,38,38) if player.is_paused else (255,255,255)), ("O", "Step"), ("[ ]", f"Speed:{player.playback_speed:.1f}"), ("F5", "Refresh"), ("H", "Hitbox"), ("R-Drag", "Cam"), ("F", "Reset Cam")]
             tx = 20
             for k, desc, *extra in controls:
                 col = extra[0] if extra else (255,255,255); pygame.draw.rect(screen, (45,45,50), (tx-5, sh-32, font_h.size(k)[0]+font_h.size(desc)[0]+25, 24), border_radius=4); screen.blit(font_h.render(k, True, (59,130,246)), (tx, sh-27)); screen.blit(font_h.render(f": {desc}", True, col), (tx+font_h.size(k)[0], sh-27)); tx += font_h.size(k)[0]+font_h.size(desc)[0]+35
