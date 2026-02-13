@@ -204,6 +204,8 @@ class AsepritePlayer:
         self.bg_img = None; self.bg_off_x = self.bg_off_y = 0; self.bg_zoom = 1.0; self.bg_alpha = 255; self.bg_parallax = 0.1; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]
         self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.swap_timer = 0; self.visible = True
         self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True
+        self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 1.0
+        self.afterimages = []; self.vfx_enabled = True; self.ghost_timer = 0
 
     def add_source(self, path):
         try:
@@ -253,7 +255,8 @@ class AsepritePlayer:
             self.active_action_slot = slot; self.action_queue = list(tags); self.loop_counter = 0; self.anim_timer = 0
             if "ComboAttack" in slot:
                 self.combo_step = (self.combo_step + 1) % 4; self.combo_reset_timer = 80
-                # Use provided keys or check real-time state
+                if self.combo_step == 0 and self.shake_enabled: # Last hit of combo
+                    self.shake_timer = 10; self.shake_intensity = 8
                 curr_keys = keys if keys is not None else pygame.key.get_pressed()
                 if curr_keys[pygame.K_RIGHT] or curr_keys[pygame.K_LEFT]:
                     self.attack_move_timer = 15
@@ -262,7 +265,8 @@ class AsepritePlayer:
                     self.vx = move_v if self.facing_right else -move_v
                 else: 
                     self.attack_move_timer = 0; self.vx = 0
-            elif slot == "POWERBOMB": self.pbomb_pause_timer = 15; self.vy = 0; self.vx = 0
+            elif slot == "POWERBOMB": 
+                self.pbomb_pause_timer = 15; self.vy = 0; self.vx = 0
             self.play_next_in_queue()
     def play_next_in_queue(self):
         if self.action_queue:
@@ -279,18 +283,41 @@ class AsepritePlayer:
             self.active_tag_info = None; self.active_action_slot = None
             self.attack_buffer = 0; self.combo_step = 0; self.combo_reset_timer = 0
     def update(self, keys, ground_y, dt):
-        # Watch Mode: Check for file changes every 60 updates
-        if pygame.time.get_ticks() % 60 == 0:
-            for src in self.sources:
-                if src.check_for_reload():
-                    log_debug(f"[WATCH] {src.name} reloaded due to change.")
-                    # Force remap profiles to capture new tags
-                    for prof in self.profiles: self.auto_map_profile(prof)
+        # VFX: Screen Shake & Afterimages
+        if self.shake_timer > 0: self.shake_timer -= dt / 16.6
+        if self.vfx_enabled:
+            for ai in self.afterimages[:]:
+                ai['alpha'] -= 15 * (dt/16.6)
+                if ai['alpha'] <= 0: self.afterimages.remove(ai)
+            if self.dash_timer > 0:
+                self.ghost_timer += dt
+                if self.ghost_timer >= 30: # Every 30ms during dash
+                    self.ghost_timer = 0; src_idx = self.active_tag_info[0] if self.active_tag_info else 0
+                    self.afterimages.append({'x': self.x, 'y': self.y, 's': src_idx, 'f': self.frame_idx, 'right': self.facing_right, 'alpha': 180})
 
-        if self.swap_timer > 0:
-            self.swap_timer -= dt
-            if self.swap_timer <= 0: self.x, self.y = self.spawn_x, self.spawn_y; self.visible = True; self.trigger_action("Swap_Enter")
-            return
+                # Watch Mode: Check for file changes every 60 updates
+
+                if pygame.time.get_ticks() % 60 == 0:
+
+                    for src in self.sources:
+
+                        if src.check_for_reload():
+
+                            log_debug(f"[WATCH] {src.name} reloaded due to change.")
+
+                            for prof in self.profiles: self.auto_map_profile(prof)
+
+        
+
+                if self.swap_timer > 0:
+
+                    self.swap_timer -= dt
+
+                    if self.swap_timer <= 0: self.x, self.y = self.spawn_x, self.spawn_y; self.visible = True; self.trigger_action("Swap_Enter")
+
+                    return
+
+        
         for i in range(2):
             if self.dash_cooldowns[i] > 0:
                 self.dash_cooldowns[i] -= dt/16.6 
@@ -309,7 +336,10 @@ class AsepritePlayer:
                 elif keys[pygame.K_LEFT]: self.vx = -6.5; self.facing_right = False
             self.vy += self.gravity
         self.x += self.vx; self.y += self.vy; self.grounded = False
-        if self.y >= ground_y: self.y = ground_y; self.vy = 0; self.grounded = True; self.jumps_left = 2
+        if self.y >= ground_y: 
+            if self.active_action_slot == "POWERBOMB" and self.vy > 0 and self.shake_enabled:
+                self.shake_timer = 15; self.shake_intensity = 15 # Strong landing shake
+            self.y = ground_y; self.vy = 0; self.grounded = True; self.jumps_left = 2
         if self.vy >= 0:
             for plat in self.platforms:
                 if plat.collidepoint(self.x, self.y) and self.y - self.vy <= plat.top + 10: self.y = plat.top; self.vy = 0; self.grounded = True; self.jumps_left = 2
@@ -374,7 +404,13 @@ class AsepritePlayer:
                         screen.blit(txt, (final_x, final_y - 12))
     def draw(self, screen, play_w, play_h):
         cx, cy = play_w // 2, play_h // 2
-        gx, gy = cx - (self.cam_x % 100)*self.zoom, cy - (self.cam_y % 100)*self.zoom
+        # Apply Screen Shake
+        cur_intensity = self.shake_intensity * self.base_shake
+        off_x = random.uniform(-cur_intensity, cur_intensity) if self.shake_timer > 0 else 0
+        off_y = random.uniform(-cur_intensity, cur_intensity) if self.shake_timer > 0 else 0
+        cam_x, cam_y = self.cam_x + off_x, self.cam_y + off_y
+
+        gx, gy = cx - (cam_x % 100)*self.zoom, cy - (cam_y % 100)*self.zoom
         for i in range(-10, 20):
             pygame.draw.line(screen, self.grid_color, (gx+i*100*self.zoom, 0), (gx+i*100*self.zoom, play_h), 1)
             pygame.draw.line(screen, self.grid_color, (0, gy+i*100*self.zoom), (play_w, gy+i*100*self.zoom), 1)
@@ -382,29 +418,42 @@ class AsepritePlayer:
             bw, bh = int(self.bg_img.get_width()*self.bg_zoom*self.zoom*0.5), int(self.bg_img.get_height()*self.bg_zoom*self.zoom*0.5)
             bs = pygame.transform.scale(self.bg_img, (bw, bh))
             if self.bg_alpha < 255: bs.set_alpha(self.bg_alpha)
-            bx = cx + (self.bg_off_x - self.cam_x * self.bg_parallax) * self.zoom - bw // 2
-            by = cy + (self.bg_off_y - self.cam_y * self.bg_parallax) * self.zoom - bh // 2
+            bx = cx + (self.bg_off_x - cam_x * self.bg_parallax) * self.zoom - bw // 2
+            by = cy + (self.bg_off_y - cam_y * self.bg_parallax) * self.zoom - bh // 2
             screen.blit(bs, (bx, by))
-        for p in self.platforms: pygame.draw.rect(screen, (80,80,100), (cx+(p.x-self.cam_x)*self.zoom, cy+(p.y-self.cam_y)*self.zoom, p.w*self.zoom, p.h*self.zoom), border_radius=int(3*self.zoom))
-        pygame.draw.line(screen, (100,100,100), (cx+(0-self.cam_x)*self.zoom, cy+(500-self.cam_y)*self.zoom), (cx+(5000-self.cam_x)*self.zoom, cy+(500-self.cam_y)*self.zoom), 2)
+        for p in self.platforms: pygame.draw.rect(screen, (80,80,100), (cx+(p.x-cam_x)*self.zoom, cy+(p.y-cam_y)*self.zoom, p.w*self.zoom, p.h*self.zoom), border_radius=int(3*self.zoom))
+        pygame.draw.line(screen, (100,100,100), (cx+(0-cam_x)*self.zoom, cy+(500-cam_y)*self.zoom), (cx+(5000-cam_x)*self.zoom, cy+(500-cam_y)*self.zoom), 2)
+        
+        # Draw Afterimages
+        if self.vfx_enabled:
+            for ai in self.afterimages:
+                src = self.sources[ai['s']]; f = src.frames[min(ai['f'], len(src.frames)-1)]
+                img = f['img'].copy()
+                # Apply alpha (manually for speed if needed, but fill with color works for ghosts)
+                img.fill((100, 150, 255, ai['alpha']), special_flags=pygame.BLEND_RGBA_MULT)
+                scaled = pygame.transform.scale(img, (int(img.get_width()*self.zoom), int(img.get_height()*self.zoom)))
+                ox, oy = f['ox']*self.zoom, f['oy']*self.zoom
+                if not ai['right']: scaled = pygame.transform.flip(scaled, True, False); ox = -ox - scaled.get_width()
+                screen.blit(scaled, (int(cx + (ai['x'] - cam_x)*self.zoom + ox), int(cy + (ai['y'] - cam_y)*self.zoom + oy)))
+
         if self.visible:
             cur_s = self.active_tag_info[0] if self.active_tag_info else 0
             if not self.active_tag_info:
                 state = "WALK" if self.grounded and abs(self.vx) > 0.5 else ("IDLE" if self.grounded else ("JUMP" if self.vy < 0 else "FALL"))
                 m = self.profiles[0].mappings.get(state, []); cur_s = m[0][0] if m else 0
-            self.draw_sprite(screen, self.x, self.y, cur_s, self.frame_idx, self.facing_right, self.cam_x, self.cam_y, cx, cy)
+            self.draw_sprite(screen, self.x, self.y, cur_s, self.frame_idx, self.facing_right, cam_x, cam_y, cx, cy)
         for ai in self.ai_list:
             if ai.visible:
                 ai_s = ai.active_tag_info[0] if ai.active_tag_info else ai.profile.source_idx
-                self.draw_sprite(screen, ai.x, ai.y, ai_s, ai.frame_idx, ai.facing_right, self.cam_x, self.cam_y, cx, cy)
-            adx, ady = (ai.x-self.cam_x)*self.zoom, (ai.y-self.cam_y)*self.zoom
+                self.draw_sprite(screen, ai.x, ai.y, ai_s, ai.frame_idx, ai.facing_right, cam_x, cam_y, cx, cy)
+            adx, ady = (ai.x-cam_x)*self.zoom, (ai.y-cam_y)*self.zoom
             if abs(adx)>play_w//2 or abs(ady)>play_h//2:
                 ang = math.atan2(ady, adx); px, py = cx+math.cos(ang)*(play_w//2-40), cy+math.sin(ang)*(play_h//2-40)
                 pygame.draw.circle(screen, (220,38,38), (int(px), int(py)), 12); pygame.draw.line(screen, (255,255,255), (px, py), (px-math.cos(ang)*8, py-math.sin(ang)*8), 2)
 
 def main():
     pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE); clock = pygame.time.Clock(); player = None; selected_slot = None; show_settings = False; slot_scroll = 0; tag_scroll = 0; settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0)
-    folds = {"PHYSICS": True, "AI & COMBAT": True, "BG IMAGE": True, "BG COLOR": True}
+    folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "BG IMAGE": True, "BG COLOR": True}
     while True:
         dt = clock.tick(60); sw, sh = screen.get_size(); sidebar_w = 450; play_w = sw - sidebar_w; play_h = sh - 70; m_pos = pygame.mouse.get_pos(); bg_col = player.bg_color if player else [15, 15, 18]; screen.fill(bg_col)
         if player: player.update(pygame.key.get_pressed(), 500, dt); player.draw(screen, play_w, play_h)
@@ -503,37 +552,57 @@ def main():
                 for cat in folds.keys():
                     hr = pygame.Rect(10, cy, sidebar_w-20, 30); pygame.draw.rect(set_surf, (50,50,60), hr, border_radius=5); set_surf.blit(font_b.render(f"{'+' if not folds[cat] else '-'} {cat}", True, (255,255,255)), (hr.x+10, hr.y+7)); cy += 35
                     if folds[cat]:
-                        if cat == "PHYSICS":
-                            for i, (l, mn, mx, at, inv) in enumerate([("Dash Vel",10,50,"dash_speed",0), ("Jump Pow",10,25,"jump_power",1), ("PBomb Spd",10,60,"powerbomb_speed",0), ("Cam Offset",-400,100,"cam_v_offset",0)]):
-                                y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn) if not inv else (-v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(80+n*(sidebar_w-120)), y+9), 8)
-                                if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y+settings_scroll, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn) if not inv else -(mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn)))
-                            cy += 185
-                        elif cat == "AI & COMBAT":
-                            for i, (l, mn, mx, at) in enumerate([("Atk Forward",0,30,"atk_forward_v")]):
-                                y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(80+n*(sidebar_w-120)), y+9), 8)
-                                if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y+settings_scroll, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn))
-                            cy += 100
-                        elif cat == "BG IMAGE":
-                            bg_btn = pygame.Rect(20, cy, 150, 30); pygame.draw.rect(set_surf, (100,100,110), bg_btn, border_radius=5); set_surf.blit(font_b.render("LOAD BG IMG", True, (255,255,255)), (bg_btn.x+25, bg_btn.y+5))
-                            if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20, cy+settings_scroll, 150, 30).collidepoint(m_pos):
-                                p = select_file([("Image", "*.png *.jpg *.bmp")]); 
-                                if p: player.bg_img = pygame.image.load(p).convert_alpha()
-                            cy += 40
-                            bg_ctrls = [("BG-X",-2000,2000,"bg_off_x"), ("BG-Y",-2000,2000,"bg_off_y"), ("Scale",0.1,10,"bg_zoom"), ("Alpha",0,255,"bg_alpha"), ("Parallax",0,1,"bg_parallax")]
-                            for i, (l, mn, mx, at) in enumerate(bg_ctrls):
-                                y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (220,38,38), (int(80+n*(sidebar_w-120)), y+9), 8)
-                                if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y+settings_scroll, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn))
-                            cy += 210
-                        elif cat == "BG COLOR":
-                            for i, c in enumerate(['R','G','B']):
-                                y = cy+i*35; sl = pygame.Rect(20, y+15, sidebar_w-40, 8); pygame.draw.rect(set_surf, (60,60,70), sl); pygame.draw.circle(set_surf, (220,38,38) if i==0 else (22,163,74) if i==1 else (59,130,246), (int(20+player.bg_color[i]/255*(sidebar_w-40)), y+19), 8)
-                                if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20, y+15+settings_scroll, sidebar_w-40, 20).collidepoint(m_pos): player.bg_color[i] = int((m_pos[0]-(play_w+20))/(sidebar_w-40)*255)
-                            cy += 120
-                            ps = [(15,15,18), (120,120,120), (240,240,240), (0,255,0)]
-                            for i, p in enumerate(ps):
-                                pr = pygame.Rect(20+i*45, cy, 35, 30); pygame.draw.rect(set_surf, p, pr, border_radius=3)
-                                if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20+i*45, cy+settings_scroll, 35, 30).collidepoint(m_pos): player.bg_color = list(p)
-                            cy += 60
+                                                if cat == "PHYSICS":
+                                                    for i, (l, mn, mx, at, inv) in enumerate([("Dash Vel",10,50,"dash_speed",0), ("Jump Pow",10,25,"jump_power",1), ("PBomb Spd",10,60,"powerbomb_speed",0), ("Cam Offset",-400,100,"cam_v_offset",0)]):
+                                                        y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn) if not inv else (-v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(80+n*(sidebar_w-120)), y+9), 8)
+                                                        if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn) if not inv else -(mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn)))
+                                                    cy += 185
+                                                elif cat == "AI & COMBAT":
+                                                    for i, (l, mn, mx, at) in enumerate([("Atk Forward",0,30,"atk_forward_v")]):
+                                                        y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(80+n*(sidebar_w-120)), y+9), 8)
+                                                        if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn))
+                                                    cy += 60
+                                                elif cat == "JUICE & VFX":
+                                                    for i, (l, at) in enumerate([("Enable Shake", "shake_enabled"), ("Enable Ghost", "vfx_enabled")]):
+                                                        y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y))
+                                                        btn = pygame.Rect(sidebar_w-60, y-5, 40, 20); val = getattr(player, at)
+                                                        pygame.draw.rect(set_surf, (22, 163, 74) if val else (220, 38, 38), btn, border_radius=10)
+                                                        pygame.draw.circle(set_surf, (255,255,255), (btn.x+30 if val else btn.x+10, btn.y+10), 8)
+                                                        if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+btn.x, y-5, btn.w, btn.h).collidepoint(m_pos):
+                                                            if not hasattr(player, "_btn_lock"): setattr(player, at, not val); player._btn_lock = 10
+                                                    
+                                                    y = cy + 85; set_surf.blit(font_s.render("Shake Power", True, (150,150,150)), (20, y))
+                                                    sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl)
+                                                    n = player.base_shake / 3.0; pygame.draw.circle(set_surf, (220, 38, 38), (int(80+n*(sidebar_w-120)), y+9), 8)
+                                                    if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos):
+                                                        player.base_shake = ((m_pos[0]-(play_w+80))/(sidebar_w-120)) * 3.0
+                                                    
+                                                    if hasattr(player, "_btn_lock"): 
+                                                        player._btn_lock -= 1
+                                                        if player._btn_lock <= 0: delattr(player, "_btn_lock")
+                                                    cy += 130
+                                                elif cat == "BG IMAGE":
+                                                    bg_btn = pygame.Rect(20, cy, 150, 30); pygame.draw.rect(set_surf, (100,100,110), bg_btn, border_radius=5); set_surf.blit(font_b.render("LOAD BG IMG", True, (255,255,255)), (bg_btn.x+25, bg_btn.y+5))
+                                                    if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20, cy, 150, 30).collidepoint(m_pos):
+                                                        p = select_file([("Image", "*.png *.jpg *.bmp")]); 
+                                                        if p: player.bg_img = pygame.image.load(p).convert_alpha()
+                                                    cy += 40
+                                                    bg_ctrls = [("BG-X",-2000,2000,"bg_off_x"), ("BG-Y",-2000,2000,"bg_off_y"), ("Scale",0.1,10,"bg_zoom"), ("Alpha",0,255,"bg_alpha"), ("Parallax",0,1,"bg_parallax")]
+                                                    for i, (l, mn, mx, at) in enumerate(bg_ctrls):
+                                                        y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (220,38,38), (int(80+n*(sidebar_w-120)), y+9), 8)
+                                                        if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn))
+                                                    cy += 210
+                                                elif cat == "BG COLOR":
+                                                    for i, c in enumerate(['R','G','B']):
+                                                        y = cy+i*35; sl = pygame.Rect(20, y+15, sidebar_w-40, 8); pygame.draw.rect(set_surf, (60,60,70), sl); pygame.draw.circle(set_surf, (220, 38, 38) if i==0 else (22, 163, 74) if i==1 else (59, 130, 246), (int(20+player.bg_color[i]/255*(sidebar_w-40)), y+19), 8)
+                                                        if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20, y+15, sidebar_w-40, 20).collidepoint(m_pos): player.bg_color[i] = int((m_pos[0]-(play_w+20))/(sidebar_w-40)*255)
+                                                    cy += 120
+                                                    ps = [(15,15,18), (120,120,120), (240,240,240), (0,255,0)]
+                                                    for i, p in enumerate(ps):
+                                                        pr = pygame.Rect(20+i*45, cy, 35, 30); pygame.draw.rect(set_surf, p, pr, border_radius=3)
+                                                        if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20+i*45, cy, 35, 30).collidepoint(m_pos): player.bg_color = list(p)
+                                                    cy += 60
+                        
                 screen.blit(set_surf, (play_w, 0)); pygame.draw.line(screen, (59, 130, 246), (play_w, 0), (play_w, sh), 2)
             else:
                 slot_clip = pygame.Surface((sidebar_w-20, 380), pygame.SRCALPHA)

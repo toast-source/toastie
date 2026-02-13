@@ -1,0 +1,33 @@
+# Aseprite Viewer Project Roadmap (Started: 2026-02-12)
+Current Version: v33 (Stable) - GitHub Uploaded
+
+## [CURRENT STATUS - v36]
+- Hybrid Profile System: Independent Player/NPC management.
+- Combat: Max 2-stack combo buffering, Dash cancel support, Step-by-step combo sequence (1-4).
+- Movement: Combo-forward movement (1/3 scale of previous speed).
+- Camera: Vertical offset slider, Right-drag manual control.
+- Playback: Pause(P), Frame Step(O), Speed control([, ]), Refresh(F5).
+- Hitbox: Slice data visualization (Hit/Hurt boxes) with persistent key logic (H toggle).
+- Watch Mode: Automatic reload on Aseprite file save.
+- Juice & VFX: Screen Shake (on Combo 4 & Powerbomb impact), After-images for Dash.
+- UI Fix: Resolved Settings scroll-click synchronization bug.
+
+## [PLANNED IMPROVEMENTS]
+1. WATCH MODE (Completed - v34)
+2. HITBOX/SLICE VISUALIZER (Completed - v35)
+3. JUICE & VFX (Completed - v36)
+4. SETTINGS PERSISTENCE:
+   - Save/Load physics and camera constants to 'config.json' or 'project_prefs.json'.
+   - Screen Shake on heavy hits (Combo 4, Powerbomb).
+   - Simple ghosting/after-image effects for Dash.
+
+4. SETTINGS PERSISTENCE:
+   - Save/Load physics and camera constants to 'config.json' or 'project_prefs.json'.
+
+5. LAYER MANAGEMENT:
+   - Optional layer filtering during export to toggle equipment/visuals.
+
+## [DEVELOPER NOTES]
+- All tools/commands must use 'pwsh' (PowerShell 7).
+- Maintain minimal chitchat and focus on idiomatic Python/Pygame code.
+- Always check 'ase_debug.log' for buffer/export errors.
