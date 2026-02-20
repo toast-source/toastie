@@ -1,0 +1,123 @@
+{
+    "sources": [
+        "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Cailin_00_Public.aseprite"
+    ],
+    "profiles": [
+        {
+            "name": "PLAYER",
+            "source_idx": 0,
+            "mappings": {
+                "IDLE": [
+                    [
+                        0,
+                        "Idle_(Loop)"
+                    ]
+                ],
+                "WALK": [
+                    [
+                        0,
+                        "Walk_(Loop)"
+                    ]
+                ],
+                "JUMP": [
+                    [
+                        0,
+                        "Jump_(Loop)"
+                    ]
+                ],
+                "FALL": [
+                    [
+                        0,
+                        "Fall_Ready"
+                    ],
+                    [
+                        0,
+                        "Fall_(Loop)"
+                    ]
+                ],
+                "ComboAttack_1": [
+                    [
+                        0,
+                        "ComboAttack_1_Ready"
+                    ],
+                    [
+                        0,
+                        "ComboAttack_1"
+                    ]
+                ],
+                "ComboAttack_2": [
+                    [
+                        0,
+                        "ComboAttack_2_Ready"
+                    ],
+                    [
+                        0,
+                        "ComboAttack_2"
+                    ]
+                ],
+                "ComboAttack_3": [
+                    [
+                        0,
+                        "ComboAttack_3_Ready"
+                    ],
+                    [
+                        0,
+                        "ComboAttack_3"
+                    ]
+                ],
+                "ComboAttack_4": [],
+                "JUMPATTACK": [
+                    [
+                        0,
+                        "JumpAttack_Ready"
+                    ],
+                    [
+                        0,
+                        "JumpAttack"
+                    ]
+                ],
+                "POWERBOMB": [
+                    [
+                        0,
+                        "PowerBomb_Ready"
+                    ],
+                    [
+                        0,
+                        "PowerBomb_(Loop)"
+                    ],
+                    [
+                        0,
+                        "PowerBomb_End"
+                    ]
+                ],
+                "DASH": [
+                    [
+                        0,
+                        "Dash"
+                    ]
+                ],
+                "SKILL 1": [],
+                "SKILL 2": [],
+                "SKILL 3": [],
+                "HURT": [],
+                "Swap_Enter": [
+                    [
+                        0,
+                        "Swap_Enter"
+                    ]
+                ],
+                "Swap_Exit": [
+                    [
+                        0,
+                        "Swap_Exit_Ready"
+                    ],
+                    [
+                        0,
+                        "Swap_Exit"
+                    ]
+                ]
+            }
+        }
+    ],
+    "ai_count": 0
+}

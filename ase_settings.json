@@ -1,1 +1,37 @@
-{"physics": {"dash_speed": 12.0, "jump_power": -18.0, "powerbomb_speed": 35.0, "cam_v_offset": -120}, "combat": {"atk_forward_v": 14.272727272727273}, "vfx": {"shake_enabled": true, "vfx_enabled": true, "base_shake": 1.0}, "viewport": {"show_viewport": true, "target_w": 640, "target_h": 360}, "bg": {"bg_color": [15, 15, 18], "bg_alpha": 255, "bg_zoom": 1.4200000000000002, "bg_parallax": 0.9, "bg_off_x": 957.5757575757575, "bg_off_y": 290.909090909091}}
+{
+    "physics": {
+        "dash_speed": 12.0,
+        "jump_power": -18.0,
+        "powerbomb_speed": 12.727272727272727,
+        "cam_v_offset": -120
+    },
+    "combat": {
+        "atk_forward_v": 15.0
+    },
+    "vfx": {
+        "shake_enabled": true,
+        "vfx_enabled": true,
+        "base_shake": 0.24545454545454545
+    },
+    "viewport": {
+        "show_viewport": true,
+        "target_w": 640,
+        "target_h": 360
+    },
+    "bg": {
+        "bg_color": [
+            34,
+            139,
+            34
+        ],
+        "bg_alpha": 255,
+        "bg_zoom": 0.49,
+        "bg_parallax": 0.9787878787878788,
+        "bg_off_x": 36.36363636363626,
+        "bg_off_y": 363.63636363636397,
+        "bg_path": "C:/Users/SOUTHPAW GAMES/Downloads/\ub85c\ube44 \ucee8\uc14987-\ubcf5\uad6c\ub428.png"
+    },
+    "ai": {
+        "target_ai_count": 1
+    }
+}

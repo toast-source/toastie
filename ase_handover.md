@@ -1,40 +1,34 @@
-# Aseprite Viewer Project Handover (v39)
-**Date:** 2026-02-12
-**Current Version:** v39 (Viewport Update)
+# Aseprite Viewer Project Handover (v46)
+**Date:** 2026-02-20
+**Current Version:** v46 (Combat Polish, Camera & UI Fixes)
 
 ## 1. Project Overview
-A Pygame-based previewer for Aseprite files, specifically designed for pixel art action games. It supports character movement, combat combos, AI NPCs, and real-time synchronization with Aseprite.
+Pygame-based Aseprite previewer with action game physics. Features advanced combat logic (combos, skills), NPC AI, and optimized rendering.
 
-## 2. Key Files
-- `ase_viewer.py`: The main application logic.
-- `ase_roadmap.log`: Historical progress and completed features.
-- `ase_settings.json`: Persisted user settings (Physics, VFX, Viewport, etc.).
-- `config.json`: Stores the absolute path to `Aseprite.exe`.
-- `ase_debug.log`: Detailed runtime logs and error traces.
+## 2. Recent Updates (v46)
+- **Combat Logic Refinement:**
+  - **Combo System:** Added visual combo stack bar. Reset timer set to 1s. Empty combo slots now reset the chain instead of skipping.
+  - **PowerBomb:** Fixed bug where `FALL` state would override PowerBomb animation mid-air.
+  - **Feel:** Removed screen shake from basic combo attacks for clarity.
+- **Animation Sequencing:**
+  - **Fall Logic:** Explicitly chains `Fall_Ready` -> `Fall_(Loop)`. Trigger timing adjusted to start near jump apex (vy > -4.0) for smoother transition.
+  - **Fixes:** Resolved animation freeze bug caused by incorrect indentation logic.
+- **UI & UX Improvements:**
+  - **Scroll Separation:** Mouse wheel now zooms only in the main view and scrolls only in the sidebar.
+  - **Scroll Clamping:** Sidebar scroll now stops at content boundaries (no infinite scrolling).
+  - **Tag Selection:** Fixed click detection offset and selection logic for tag mapping.
+- **Camera & NPC:**
+  - **Camera Offset:** Adjusted `cam_v_offset` to `50` (positions character higher on screen for better ground visibility). increased tracking speed (0.25).
+  - **NPC Spawn:** Spawn range narrowed (600-900) to ensure NPCs appear near the player.
 
-## 3. Core Features (v39)
-- **Hybrid System**: Manages Player and NPC profiles independently.
-- **Combat**: Max 2-stack combo buffering. Attacks move forward based on input.
-- **Watch Mode**: Automatically reloads `.aseprite` files on save (manual F5 supported).
-- **Hitbox/Slice**: Visualizes Aseprite slices. Persistent logic avoids flickering.
-- **VFX**: Screen shake on heavy impacts, Dash after-images.
-- **Viewport**: 640x360 guide with letterboxing for target resolution testing.
-- **Persistence**: Almost all UI settings are auto-saved and auto-loaded.
+## 3. Key Files in this Folder
+- `ase_viewer.py`: Main logic (v46).
+- `ase_debug.log`: Animation state logs (useful for debugging transitions).
+- `ase_settings.json`: Persisted physics/VFX settings.
+- `ase_project.json`: Last used source files and tag mappings.
 
-## 4. Key Shortcuts
-- `Z`: Attack (Buffered) / `X`: Dash / `C, B, N`: Skills
-- `Space`: Jump / `T`: Swap Exit/Enter
-- `P`: Pause / `O`: Frame Step / `[` `]`: Speed Control
-- `F5`: Force Reload / `H`: Toggle Hitboxes / `F`: Reset Camera
-- `R-Drag`: Manual Camera Move
-
-## 5. Known Implementation Details for Next Dev
-- **CLI Dependency**: Uses `aseprite -b --list-layers` and `--sheet` for exports.
-- **Coordinate System**: Center-based rendering using `spriteSourceSize` from Aseprite JSON.
-- **Indentation Style**: Strictly 4 spaces. Some UI code is compact (semicolons used sparingly).
-- **Bug Fix History**: Recently fixed an `AttributeError` in AI action triggering and a scroll-sync bug in the Settings UI.
-
-## 6. Suggested Next Steps
-- Implement "Project Persistence" for loaded sources (saving which files were open).
-- Add frame-by-frame hitbox editing if needed.
-- Enhance AI behaviors (simple pathfinding or platform detection).
+## 4. Instructions for Next Session
+1. Run `python ase_viewer.py`.
+2. **Test Combat:** Check combo stack bar at bottom, verify `Fall_Ready` plays fully on jump descent.
+3. **UI Check:** Verify scroll wheel behaves correctly in viewport vs sidebar.
+4. **Shortcuts:** `Z` (Attack), `X` (Dash), `C/B/N` (Skills), `F5` (Reload), `R-Drag` (Camera).
