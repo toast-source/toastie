@@ -490,7 +490,7 @@ class AsepritePlayer:
             vw, vh = self.target_w * self.zoom, self.target_h * self.zoom; vr = pygame.Rect(cx - vw//2, cy - vh//2, vw, vh); overlay = pygame.Surface((play_w, play_h), pygame.SRCALPHA); overlay.fill((0, 0, 0, 160)); pygame.draw.rect(overlay, (0, 0, 0, 0), vr); screen.blit(overlay, (0, 0)); pygame.draw.rect(screen, (255, 255, 255), vr, 1); screen.blit(pygame.font.SysFont("Arial", 12).render(f"Viewport: {self.target_w}x{self.target_h} (16:9)", True, (255,255,255)), (vr.x, vr.y - 18))
 
 def main():
-    pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE); clock = pygame.time.Clock(); player = AsepritePlayer(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "VIEWPORT": True, "BG IMAGE": True, "BG COLOR": True}
+    pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE); clock = pygame.time.Clock(); player = AsepritePlayer(); player.load_project(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "VIEWPORT": True, "BG IMAGE": True, "BG COLOR": True}
     while True:
         raw_dt = clock.tick(60)
         dt = raw_dt * player.playback_speed if player else raw_dt
