@@ -1,8 +1,6 @@
 {
     "sources": [
         "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Cailin_00_Public.aseprite",
-        "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Oswald_00_Public.aseprite",
-        "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Nisariel_00_Public_01.aseprite",
         "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Nisariel_00_Public_02.aseprite"
     ],
     "profiles": [
@@ -140,320 +138,82 @@
                 "JUMP": [
                     [
                         1,
-                        "Jump_(Loop)"
-                    ]
-                ],
-                "FALL": [
-                    [
-                        1,
-                        "Fall_Ready"
-                    ],
-                    [
-                        1,
-                        "Fall_(Loop)"
-                    ]
-                ],
-                "ComboAttack_1": [
-                    [
-                        1,
-                        "ComboAttack_1_Ready"
-                    ],
-                    [
-                        1,
-                        "ComboAttack_1"
-                    ]
-                ],
-                "ComboAttack_2": [
-                    [
-                        1,
-                        "ComboAttack_2_Ready"
-                    ],
-                    [
-                        1,
-                        "ComboAttack_2"
-                    ]
-                ],
-                "ComboAttack_3": [
-                    [
-                        1,
-                        "ComboAttack_3_Ready"
-                    ],
-                    [
-                        1,
-                        "ComboAttack_3"
-                    ]
-                ],
-                "ComboAttack_4": [],
-                "JUMPATTACK": [
-                    [
-                        1,
-                        "JumpAttack_Ready"
-                    ],
-                    [
-                        1,
-                        "JumpAttack"
-                    ]
-                ],
-                "POWERBOMB": [
-                    [
-                        1,
-                        "PowerBomb_Ready"
-                    ],
-                    [
-                        1,
-                        "PowerBomb"
-                    ],
-                    [
-                        1,
-                        "PowerBomb_(Loop)"
-                    ],
-                    [
-                        1,
-                        "PowerBomb_End"
-                    ]
-                ],
-                "DASH": [
-                    [
-                        1,
-                        "Dash"
-                    ]
-                ],
-                "SKILL 1": [],
-                "SKILL 2": [],
-                "SKILL 3": [],
-                "HURT": [],
-                "Swap_Enter": [
-                    [
-                        1,
-                        "Swap_Enter"
-                    ]
-                ],
-                "Swap_Exit": [
-                    [
-                        1,
-                        "Swap_Exit_Ready"
-                    ],
-                    [
-                        1,
-                        "Swap_Exit"
-                    ]
-                ]
-            }
-        },
-        {
-            "name": "NPC_2",
-            "source_idx": 2,
-            "mappings": {
-                "IDLE": [
-                    [
-                        2,
-                        "Idle_(Loop)"
-                    ]
-                ],
-                "WALK": [
-                    [
-                        2,
-                        "Walk_(Loop)"
-                    ]
-                ],
-                "JUMP": [
-                    [
-                        2,
-                        "Jump_(Loop)"
-                    ]
-                ],
-                "FALL": [
-                    [
-                        2,
-                        "Fall_Ready"
-                    ],
-                    [
-                        2,
-                        "Fall_(Loop)"
-                    ]
-                ],
-                "ComboAttack_1": [
-                    [
-                        2,
-                        "ComboAttack_1_Ready"
-                    ],
-                    [
-                        2,
-                        "ComboAttack_1"
-                    ]
-                ],
-                "ComboAttack_2": [
-                    [
-                        2,
-                        "ComboAttack_2_Ready"
-                    ],
-                    [
-                        2,
-                        "ComboAttack_2"
-                    ]
-                ],
-                "ComboAttack_3": [
-                    [
-                        2,
-                        "ComboAttack_3_Ready"
-                    ],
-                    [
-                        2,
-                        "ComboAttack_3"
-                    ]
-                ],
-                "ComboAttack_4": [],
-                "JUMPATTACK": [
-                    [
-                        2,
-                        "JumpAttack_Ready"
-                    ],
-                    [
-                        2,
-                        "JumpAttack"
-                    ]
-                ],
-                "POWERBOMB": [
-                    [
-                        2,
-                        "PowerBomb_Ready"
-                    ],
-                    [
-                        2,
-                        "PowerBomb"
-                    ],
-                    [
-                        2,
-                        "PowerBomb_(Loop)"
-                    ],
-                    [
-                        2,
-                        "PowerBomb_End"
-                    ]
-                ],
-                "DASH": [
-                    [
-                        2,
-                        "Dash"
-                    ]
-                ],
-                "SKILL 1": [],
-                "SKILL 2": [],
-                "SKILL 3": [],
-                "HURT": [],
-                "Swap_Enter": [
-                    [
-                        2,
-                        "Swap_Enter"
-                    ]
-                ],
-                "Swap_Exit": [
-                    [
-                        2,
-                        "Swap_Exit_Ready"
-                    ],
-                    [
-                        2,
-                        "Swap_Exit"
-                    ]
-                ]
-            }
-        },
-        {
-            "name": "NPC_3",
-            "source_idx": 3,
-            "mappings": {
-                "IDLE": [
-                    [
-                        3,
-                        "Idle_(Loop)"
-                    ]
-                ],
-                "WALK": [
-                    [
-                        3,
-                        "Walk_(Loop)"
-                    ]
-                ],
-                "JUMP": [
-                    [
-                        3,
                         "Jump(Loop)"
                     ]
                 ],
                 "FALL": [
                     [
-                        3,
+                        1,
                         "Fall_Ready"
                     ],
                     [
-                        3,
+                        1,
                         "Fall_(Loop)"
                     ]
                 ],
                 "ComboAttack_1": [
                     [
-                        3,
+                        1,
                         "ComboAttack_1_Ready"
                     ],
                     [
-                        3,
+                        1,
                         "ComboAttack_1"
                     ]
                 ],
                 "ComboAttack_2": [
                     [
-                        3,
+                        1,
                         "ComboAttack_2"
                     ]
                 ],
                 "ComboAttack_3": [
                     [
-                        3,
+                        1,
                         "ComboAttack_3_Ready"
                     ],
                     [
-                        3,
+                        1,
                         "ComboAttack_3"
                     ]
                 ],
                 "ComboAttack_4": [
                     [
-                        3,
+                        1,
                         "ComboAttack_4_Ready"
                     ],
                     [
-                        3,
+                        1,
                         "ComboAttack_4"
                     ]
                 ],
                 "JUMPATTACK": [
                     [
-                        3,
+                        1,
                         "JumpAttack_Ready"
                     ],
                     [
-                        3,
+                        1,
                         "JumpAttack"
                     ]
                 ],
                 "POWERBOMB": [
                     [
-                        3,
+                        1,
                         "PowerBomb"
                     ],
                     [
-                        3,
+                        1,
                         "PowerBomb_(Loop)"
                     ],
                     [
-                        3,
+                        1,
                         "PowerBomb_End"
                     ]
                 ],
                 "DASH": [
                     [
-                        3,
+                        1,
                         "Dash"
                     ]
                 ],
@@ -463,28 +223,28 @@
                 "HURT": [],
                 "Swap_Enter": [
                     [
-                        3,
+                        1,
                         "Swap_Enter"
                     ]
                 ],
                 "Swap_Exit": [
                     [
-                        3,
+                        1,
                         "Swap_Exit_Ready"
                     ],
                     [
-                        3,
+                        1,
                         "Swap_Exit"
                     ]
                 ]
             }
         }
     ],
-    "ai_count": 2,
+    "ai_count": 1,
     "platforms": [
         [
-            200,
-            350,
+            207,
+            377,
             200,
             20
         ],
@@ -495,8 +255,8 @@
             20
         ],
         [
-            -200,
-            250,
+            -412,
+            214,
             300,
             20
         ],
@@ -504,6 +264,18 @@
             900,
             300,
             400,
+            20
+        ],
+        [
+            -117,
+            252,
+            200,
+            20
+        ],
+        [
+            -168,
+            69,
+            200,
             20
         ]
     ]

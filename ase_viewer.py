@@ -160,7 +160,7 @@ class AseAI:
             state = "WALK" if self.grounded and abs(self.vx) > 0.5 else ("IDLE" if self.grounded else ("JUMP" if self.vy < 0 else "FALL"))
             m = self.profile.mappings.get(state, []) if self.profile else []; target_info = m[0] if m else None
         else: target_info = self.active_tag_info
-        if target_info:
+        if target_info and target_info[0] >= 0 and target_info[0] < len(self.master.sources):
             src = self.master.sources[target_info[0]]; tr = src.tags.get(target_info[1], (0,0))
             if self.frame_idx < tr[0] or self.frame_idx > tr[1]: self.frame_idx = tr[0]; self.anim_timer = 0
             if not self.master.is_paused:
@@ -172,15 +172,24 @@ class AseAI:
                         if self.active_tag_info and self.frame_idx > self.action_end_frame:
                             if target_info[1] == "Swap_Exit": self.visible = False; self.swap_timer = 500; self.active_tag_info = None; self.active_action_slot = None; return
                             if "(loop)" in target_info[1].lower(): self.frame_idx = tr[0]
-                            elif self.action_queue: self.active_tag_info = self.action_queue.pop(0); s = self.master.sources[self.active_tag_info[0]]; self.frame_idx, self.action_end_frame = s.tags.get(self.active_tag_info[1], (0,0))
+                            elif self.action_queue:
+                                self.active_tag_info = self.action_queue.pop(0)
+                                if self.active_tag_info[0] >= 0 and self.active_tag_info[0] < len(self.master.sources):
+                                    s = self.master.sources[self.active_tag_info[0]]; self.frame_idx, self.action_end_frame = s.tags.get(self.active_tag_info[1], (0,0))
+                                else:
+                                    self.active_tag_info = None; self.active_action_slot = None
                             else: self.active_tag_info = None; self.active_action_slot = None
                         elif self.frame_idx > tr[1]: self.frame_idx = tr[0]
                 else: self.frame_idx = tr[0]
     def trigger_action(self, slot):
         tags = self.profile.mappings.get(slot, [])
         if tags:
-            self.active_action_slot = slot; self.action_queue = list(tags); self.active_tag_info = self.action_queue.pop(0); src = self.master.sources[self.active_tag_info[0]]; self.frame_idx, self.action_end_frame = src.tags.get(self.active_tag_info[1], (0,0)); self.anim_timer = 0
-            if slot == "DASH": self.vx = 8 if self.facing_right else -8
+            self.active_action_slot = slot; self.action_queue = list(tags); self.active_tag_info = self.action_queue.pop(0)
+            if self.active_tag_info[0] >= 0 and self.active_tag_info[0] < len(self.master.sources):
+                src = self.master.sources[self.active_tag_info[0]]; self.frame_idx, self.action_end_frame = src.tags.get(self.active_tag_info[1], (0,0)); self.anim_timer = 0
+                if slot == "DASH": self.vx = 8 if self.facing_right else -8
+            else:
+                self.active_tag_info = None; self.active_action_slot = None; self.action_queue = []
 
 class AsepritePlayer:
     def __init__(self, initial_path=None):
@@ -197,6 +206,9 @@ class AsepritePlayer:
             with open("ase_settings.json", "w") as f: json.dump(data, f, indent=4)
         except: pass
     def load_settings(self):
+        if not hasattr(self, "key_map"):
+            self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "HURT": pygame.K_v}
+        self.popup = None # {'msg': str, 'cb': func}
         if os.path.exists("ase_settings.json"):
             try:
                 with open("ase_settings.json", "r") as f:
@@ -210,7 +222,7 @@ class AsepritePlayer:
                     self.bg_img = pygame.image.load(self.bg_path).convert_alpha(); self.bg_needs_update = True; self.bg_last_mtime = os.path.getmtime(self.bg_path)
             except: pass
     def save_project(self):
-        project = {"sources": [s.file_path for s in self.sources], "profiles": [{"name": p.name, "source_idx": p.source_idx, "mappings": p.mappings} for p in self.profiles], "ai_count": self.target_ai_count, "platforms": [[p.x, p.y, p.w, p.h] for p in self.platforms]}
+        project = {"sources": [s.file_path for s in self.sources], "profiles": [{"name": p.name, "source_idx": p.source_idx, "mappings": p.mappings} for p in self.profiles], "ai_count": self.target_ai_count, "platforms": [[p.x, p.y, p.w, p.h] for p in self.platforms], "solid_boxes": [[b.x, b.y, b.w, b.h] for b in self.solid_boxes]}
         try:
             with open("ase_project.json", "w") as f: json.dump(project, f, indent=4)
         except: pass
@@ -224,7 +236,10 @@ class AsepritePlayer:
                     if not self.profiles and self.sources: self.add_profile("PLAYER", 0)
                     self.target_ai_count = p.get("ai_count", self.target_ai_count)
                     if "platforms" in p: self.platforms = [pygame.Rect(d[0], d[1], d[2], d[3]) for d in p["platforms"]]
+                    if "solid_boxes" in p: self.solid_boxes = [pygame.Rect(d[0], d[1], d[2], d[3]) for d in p["solid_boxes"]]
+                    else: self.solid_boxes = []
             except: pass
+        else: self.solid_boxes = []
     def add_source(self, path):
         try:
             new_source = AseSource(path, len(self.sources)); self.sources.append(new_source); self.cur_source_idx = new_source.id; return new_source.id
@@ -309,7 +324,13 @@ class AsepritePlayer:
 
     def play_next_in_queue(self):
         if self.action_queue:
-            self.active_tag_info = self.action_queue.pop(0); src = self.sources[self.active_tag_info[0]]
+            self.active_tag_info = self.action_queue.pop(0)
+            if not self.active_tag_info or self.active_tag_info[0] < 0 or self.active_tag_info[0] >= len(self.sources):
+                self.active_tag_info = None
+                self.active_action_slot = None
+                self.action_queue = []
+                return
+            src = self.sources[self.active_tag_info[0]]
             if self.active_tag_info[1] in src.tags: 
                 self.frame_idx, self.action_end_frame = src.tags[self.active_tag_info[1]]
                 log_debug(f"  [QUEUE] Start Tag: {self.active_tag_info[1]} (Frames {self.frame_idx}-{self.action_end_frame})")
@@ -378,7 +399,26 @@ class AsepritePlayer:
                 if keys[pygame.K_RIGHT]: self.vx = 6.5; self.facing_right = True
                 elif keys[pygame.K_LEFT]: self.vx = -6.5; self.facing_right = False
             self.vy += self.gravity * (dt / 16.6)
-        self.x += self.vx * (dt/16.6); self.y += self.vy * (dt/16.6); self.grounded = False
+        # X-Axis Movement & Collision
+        self.x += self.vx * (dt/16.6)
+        if hasattr(self, "solid_boxes"):
+            player_rect = pygame.Rect(self.x-10, self.y-50, 20, 50) # Approx Hitbox
+            for box in self.solid_boxes:
+                if box.colliderect(player_rect):
+                    if self.vx > 0: self.x = box.left - 10
+                    elif self.vx < 0: self.x = box.right + 10
+                    self.vx = 0
+
+        # Y-Axis Movement & Collision
+        self.y += self.vy * (dt/16.6); self.grounded = False
+        if hasattr(self, "solid_boxes"):
+            player_rect = pygame.Rect(self.x-10, self.y-50, 20, 50)
+            for box in self.solid_boxes:
+                if box.colliderect(player_rect):
+                    if self.vy > 0: 
+                        self.y = box.top + 50; self.grounded = True; self.vy = 0; self.jumps_left = 2
+                        if self.active_action_slot == "FALL": self.active_tag_info = None; self.active_action_slot = None
+                    elif self.vy < 0: self.y = box.bottom + 50; self.vy = 0
         
         # Grounding Logic
         if self.y >= ground_y: 
@@ -388,6 +428,8 @@ class AsepritePlayer:
         if self.vy >= 0 and self.drop_through_timer <= 0:
             for plat in self.platforms:
                 if plat.collidepoint(self.x, self.y) and self.y - (self.vy * (dt/16.6)) <= plat.top + 10: 
+                    # PowerBomb Impact on Platform
+                    if self.active_action_slot == "POWERBOMB" and self.shake_enabled: self.shake_timer = 15; self.shake_intensity = 15
                     self.y = plat.top; self.vy = 0; self.grounded = True; self.jumps_left = 2
                     if self.active_action_slot == "FALL": self.active_tag_info = None; self.active_action_slot = None
         
@@ -411,7 +453,7 @@ class AsepritePlayer:
                 else: target_info = self.active_tag_info
             else: target_info = self.active_tag_info
             
-            if target_info:
+            if target_info and target_info[0] >= 0 and target_info[0] < len(self.sources):
                 src = self.sources[target_info[0]]; tr = src.tags.get(target_info[1], (0,0))
                 if self.frame_idx < tr[0] or self.frame_idx > tr[1]: self.frame_idx = tr[0]; self.anim_timer = 0
                 if not self.is_paused or self.step_forward:
@@ -437,7 +479,7 @@ class AsepritePlayer:
         for ai in self.ai_list: ai.update(ground_y, dt)
 
     def draw_sprite(self, screen, x, y, source_idx, f_idx, facing_right, cam_x, cam_y, cx, cy):
-        if source_idx >= len(self.sources): return
+        if source_idx < 0 or source_idx >= len(self.sources): return
         src = self.sources[source_idx]; scaled = src.get_frame(f_idx, self.zoom, facing_right)
         if not scaled: return
         f = src.frames[min(max(0, f_idx), len(src.frames)-1)]; ox, oy = f['ox']*self.zoom, f['oy']*self.zoom
@@ -455,18 +497,31 @@ class AsepritePlayer:
                     col = (220, 38, 38) if "hit" in name.lower() else (22, 163, 74); pygame.draw.rect(screen, col, (final_x, final_y, final_w, final_h), 2)
                     if self.zoom > 1.5: txt = pygame.font.SysFont("Arial", 10).render(name, True, col); screen.blit(txt, (final_x, final_y - 12))
     def draw(self, screen, play_w, play_h):
+        if not hasattr(self, "solid_boxes"): self.solid_boxes = []
         cx, cy = play_w // 2, play_h // 2; off_x = random.uniform(-self.shake_intensity*self.base_shake, self.shake_intensity*self.base_shake) if self.shake_timer > 0 else 0; off_y = random.uniform(-self.shake_intensity*self.base_shake, self.shake_intensity*self.base_shake) if self.shake_timer > 0 else 0; cam_x, cam_y = self.cam_x + off_x, self.cam_y + off_y; gx, gy = cx - (cam_x % 100)*self.zoom, cy - (cam_y % 100)*self.zoom
         for i in range(-10, 20): pygame.draw.line(screen, self.grid_color, (gx+i*100*self.zoom, 0), (gx+i*100*self.zoom, play_h), 1); pygame.draw.line(screen, self.grid_color, (0, gy+i*100*self.zoom), (play_w, gy+i*100*self.zoom), 1)
         if self.bg_img:
             if self.bg_needs_update or self.cached_bg is None: self.update_bg_cache()
             bx = cx + (self.bg_off_x - cam_x * self.bg_parallax) * self.zoom - self.cached_bg.get_width() // 2; by = cy + (self.bg_off_y - cam_y * self.bg_parallax) * self.zoom - self.cached_bg.get_height() // 2; screen.blit(self.cached_bg, (bx, by))
         
-        # Draw Platforms with Alpha
+        # Draw Platforms
         plat_surf = pygame.Surface((play_w, play_h), pygame.SRCALPHA)
         for i, p in enumerate(self.platforms): 
             px, py, pw, ph = cx+(p.x-cam_x)*self.zoom, cy+(p.y-cam_y)*self.zoom, p.w*self.zoom, p.h*self.zoom
             col = (255, 255, 0, self.platform_alpha) if self.edit_platforms and self.selected_plat == i else (80, 80, 100, self.platform_alpha)
             pygame.draw.rect(plat_surf, col, (px, py, pw, ph), border_radius=int(3*self.zoom))
+            # Resize Handle (Bottom-Right)
+            if self.edit_platforms and self.selected_plat == i:
+                pygame.draw.rect(plat_surf, (255, 0, 0), (px+pw-10, py+ph-10, 10, 10))
+
+        # Draw Solid Boxes
+        for i, b in enumerate(self.solid_boxes):
+            px, py, pw, ph = cx+(b.x-cam_x)*self.zoom, cy+(b.y-cam_y)*self.zoom, b.w*self.zoom, b.h*self.zoom
+            col = (255, 100, 0, self.platform_alpha) if self.edit_platforms and self.selected_plat == i + 1000 else (50, 50, 60, self.platform_alpha) # Use offset ID for boxes
+            pygame.draw.rect(plat_surf, col, (px, py, pw, ph))
+            if self.edit_platforms and self.selected_plat == i + 1000:
+                pygame.draw.rect(plat_surf, (255, 0, 0), (px+pw-10, py+ph-10, 10, 10))
+
         screen.blit(plat_surf, (0,0))
         
         pygame.draw.line(screen, (100,100,100), (cx+(0-cam_x)*self.zoom, cy+(500-cam_y)*self.zoom), (cx+(5000-cam_x)*self.zoom, cy+(500-cam_y)*self.zoom), 2)
@@ -488,9 +543,28 @@ class AsepritePlayer:
             if abs(adx)>play_w//2 or abs(ady)>play_h//2: ang = math.atan2(ady, adx); px, py = cx+math.cos(ang)*(play_w//2-40), cy+math.sin(ang)*(play_h//2-40); pygame.draw.circle(screen, (220,38,38), (int(px), int(py)), 12); pygame.draw.line(screen, (255,255,255), (px, py), (px-math.cos(ang)*8, py-math.sin(ang)*8), 2)
         if self.show_viewport:
             vw, vh = self.target_w * self.zoom, self.target_h * self.zoom; vr = pygame.Rect(cx - vw//2, cy - vh//2, vw, vh); overlay = pygame.Surface((play_w, play_h), pygame.SRCALPHA); overlay.fill((0, 0, 0, 160)); pygame.draw.rect(overlay, (0, 0, 0, 0), vr); screen.blit(overlay, (0, 0)); pygame.draw.rect(screen, (255, 255, 255), vr, 1); screen.blit(pygame.font.SysFont("Arial", 12).render(f"Viewport: {self.target_w}x{self.target_h} (16:9)", True, (255,255,255)), (vr.x, vr.y - 18))
+        
+        # Popup Overlay Draw
+        if self.popup:
+            msg_w, msg_h = 300, 150; cx, cy = screen.get_width()//2, screen.get_height()//2
+            overlay = pygame.Surface((screen.get_width(), screen.get_height()), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 128)); screen.blit(overlay, (0, 0))
+            
+            pygame.draw.rect(screen, (40, 40, 45), (cx-msg_w//2, cy-msg_h//2, msg_w, msg_h), border_radius=10)
+            pygame.draw.rect(screen, (60, 60, 65), (cx-msg_w//2, cy-msg_h//2, msg_w, msg_h), 2, border_radius=10)
+            
+            font_b = pygame.font.SysFont("Arial", 14, bold=True); font_s = pygame.font.SysFont("Arial", 12)
+            screen.blit(font_b.render("Confirm Action", True, (255, 255, 255)), (cx-50, cy-50))
+            screen.blit(font_s.render(self.popup['msg'], True, (200, 200, 200)), (cx-len(self.popup['msg'])*3, cy-20))
+            
+            yes_btn = pygame.Rect(cx-80, cy+20, 60, 30); no_btn = pygame.Rect(cx+20, cy+20, 60, 30)
+            pygame.draw.rect(screen, (59, 130, 246), yes_btn, border_radius=5)
+            pygame.draw.rect(screen, (220, 38, 38), no_btn, border_radius=5)
+            screen.blit(font_b.render("YES", True, (255,255,255)), (yes_btn.x+15, yes_btn.y+5))
+            screen.blit(font_b.render("NO", True, (255,255,255)), (no_btn.x+20, no_btn.y+5))
 
 def main():
-    pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE); clock = pygame.time.Clock(); player = AsepritePlayer(); player.load_project(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "VIEWPORT": True, "BG IMAGE": True, "BG COLOR": True}
+    pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE); clock = pygame.time.Clock(); player = AsepritePlayer(); player.load_project(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "VIEWPORT": True, "BG IMAGE": True, "BG COLOR": True, "CONTROLS": False}
     while True:
         raw_dt = clock.tick(60)
         dt = raw_dt * player.playback_speed if player else raw_dt
@@ -512,8 +586,10 @@ def main():
         edit_p_btn = pygame.Rect(10, 38, 100, 28); pygame.draw.rect(screen, (220, 38, 38) if player.edit_platforms else (60, 60, 70), edit_p_btn, border_radius=5); screen.blit(font_b.render("EDIT PLAT", True, (255,255,255)), (edit_p_btn.x+15, 43))
         
         add_p_btn = pygame.Rect(115, 38, 80, 28); 
+        add_b_btn = pygame.Rect(205, 38, 80, 28);
         if player.edit_platforms:
             pygame.draw.rect(screen, (59, 130, 246), add_p_btn, border_radius=5); screen.blit(font_b.render("+ PLAT", True, (255,255,255)), (add_p_btn.x+15, 43))
+            pygame.draw.rect(screen, (255, 140, 0), add_b_btn, border_radius=5); screen.blit(font_b.render("+ BOX", True, (255,255,255)), (add_b_btn.x+15, 43))
             
         settings_btn = pygame.Rect(play_w - 110, 5, 100, 28); pygame.draw.rect(screen, (50, 50, 60), settings_btn, border_radius=5); screen.blit(font_b.render("⚙ SETUP", True, (255,255,255)), (settings_btn.x+20, 10))
 
@@ -539,60 +615,104 @@ def main():
                 if not player.profiles: player.add_source(event.file); player.add_profile("PLAYER", 0)
                 else: sid = player.add_source(event.file); player.add_profile(f"NPC_{len(player.profiles)}", sid, is_npc=True)
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 3 and m_pos[0] < play_w: is_dragging_cam = True; last_m_pos = m_pos; player.cam_follow = False
-                if event.button == 1:
-                    # Top Bar Interaction
-                    if m_pos[1] < 70 and m_pos[0] < play_w:
-                        # Row 1 Buttons
-                        if new_proj.collidepoint(m_pos): 
-                            p = select_file([("Aseprite", "*.aseprite *.ase")])
-                            if p: player = AsepritePlayer(p)
-                        elif load_prev.collidepoint(m_pos) and has_prev: player.load_project()
-                        elif add_src.collidepoint(m_pos) and player: 
-                            p = select_file([("Aseprite", "*.aseprite *.ase")])
-                            if p: player.add_source(p)
-                        elif add_npc.collidepoint(m_pos) and player: 
-                            p = select_file([("Aseprite", "*.aseprite *.ase")])
-                            if p: sid = player.add_source(p); player.add_profile(f"NPC_{len(player.profiles)}", sid, is_npc=True)
-                        elif settings_btn.collidepoint(m_pos): show_settings = not show_settings; settings_scroll = 0
-                        
-                        # Row 2 Buttons
-                        elif edit_p_btn.collidepoint(m_pos): player.edit_platforms = not player.edit_platforms; player.selected_plat = None
-                        elif player.edit_platforms and add_p_btn.collidepoint(m_pos):
-                            cx, cy = play_w // 2, play_h // 2
-                            cam_x, cam_y = player.cam_x, player.cam_y
-                            player.platforms.append(pygame.Rect(cam_x, cam_y, 200, 20))
-                        
-                        # Tabs
-                        elif player:
-                            for i in range(len(player.profiles)):
-                                if pygame.Rect(400+i*95, 5, 90, 28).collidepoint(m_pos): player.cur_profile_idx = i
-                            for i in range(len(player.sources)):
-                                if pygame.Rect(400+i*110, 38, 105, 28).collidepoint(m_pos): player.cur_source_idx = i
+                if player.popup:
+                    # Popup Handling (Yes/No)
+                    msg_w, msg_h = 300, 150; cx, cy = screen.get_width()//2, screen.get_height()//2
+                    overlay = pygame.Surface((screen.get_width(), screen.get_height()), pygame.SRCALPHA)
+                    overlay.fill((0, 0, 0, 128)); screen.blit(overlay, (0, 0))
+                    
+                    pygame.draw.rect(screen, (40, 40, 45), (cx-msg_w//2, cy-msg_h//2, msg_w, msg_h), border_radius=10)
+                    pygame.draw.rect(screen, (60, 60, 65), (cx-msg_w//2, cy-msg_h//2, msg_w, msg_h), 2, border_radius=10)
+                    
+                    screen.blit(font_b.render("Confirm Action", True, (255, 255, 255)), (cx-50, cy-50))
+                    screen.blit(font_s.render(player.popup['msg'], True, (200, 200, 200)), (cx-len(player.popup['msg'])*3, cy-20))
+                    
+                    yes_btn = pygame.Rect(cx-80, cy+20, 60, 30); no_btn = pygame.Rect(cx+20, cy+20, 60, 30)
+                    pygame.draw.rect(screen, (59, 130, 246), yes_btn, border_radius=5)
+                    pygame.draw.rect(screen, (220, 38, 38), no_btn, border_radius=5)
+                    screen.blit(font_b.render("YES", True, (255,255,255)), (yes_btn.x+15, yes_btn.y+5))
+                    screen.blit(font_b.render("NO", True, (255,255,255)), (no_btn.x+20, no_btn.y+5))
+                    
+                    if yes_btn.collidepoint(m_pos):
+                        if player.popup['cb']: player.popup['cb']()
+                        player.popup = None
+                    elif no_btn.collidepoint(m_pos):
+                        player.popup = None
+                else:
+                    if event.button == 3 and m_pos[0] < play_w: is_dragging_cam = True; last_m_pos = m_pos; player.cam_follow = False
+                    if event.button == 1:
+                        # Top Bar Interaction
+                        if m_pos[1] < 70 and m_pos[0] < play_w:
+                            # Row 1 Buttons
+                            if new_proj.collidepoint(m_pos): 
+                                p = select_file([("Aseprite", "*.aseprite *.ase")])
+                                if p: player = AsepritePlayer(p); player.load_project()
+                            elif load_prev.collidepoint(m_pos) and has_prev: player.load_project()
+                            elif add_src.collidepoint(m_pos) and player: 
+                                p = select_file([("Aseprite", "*.aseprite *.ase")])
+                                if p: player.add_source(p)
+                            elif add_npc.collidepoint(m_pos) and player: 
+                                p = select_file([("Aseprite", "*.aseprite *.ase")])
+                                if p: sid = player.add_source(p); player.add_profile(f"NPC_{len(player.profiles)}", sid, is_npc=True)
+                            elif settings_btn.collidepoint(m_pos): show_settings = not show_settings; settings_scroll = 0
+                            
+                            # Row 2 Buttons
+                            elif edit_p_btn.collidepoint(m_pos): player.edit_platforms = not player.edit_platforms; player.selected_plat = None
+                            elif player.edit_platforms and add_p_btn.collidepoint(m_pos):
+                                cx, cy = play_w // 2, play_h // 2
+                                cam_x, cam_y = player.cam_x, player.cam_y
+                                player.platforms.append(pygame.Rect(cam_x, cam_y, 200, 20))
+                            elif player.edit_platforms and add_b_btn.collidepoint(m_pos):
+                                cx, cy = play_w // 2, play_h // 2
+                                cam_x, cam_y = player.cam_x, player.cam_y
+                                if not hasattr(player, "solid_boxes"): player.solid_boxes = []
+                                player.solid_boxes.append(pygame.Rect(cam_x, cam_y, 100, 100))
+                            
+                            # Tabs
+                            elif player:
+                                for i in range(len(player.profiles)):
+                                    if pygame.Rect(400+i*95, 5, 90, 28).collidepoint(m_pos): 
+                                        if player.cur_profile_idx != i:
+                                            player.popup = {'msg': "Switch Profile?", 'cb': lambda i=i: setattr(player, 'cur_profile_idx', i)}
+                                for i in range(len(player.sources)):
+                                    if pygame.Rect(400+i*110, 38, 105, 28).collidepoint(m_pos): 
+                                        if player.cur_source_idx != i:
+                                            def _switch(idx=i):
+                                                player.cur_source_idx = idx
+                                                if player.profiles:
+                                                    p = player.profiles[player.cur_profile_idx]
+                                                    p.source_idx = idx
+                                                    player.auto_map_profile(p)
+                                            player.popup = {'msg': "Switch Source?", 'cb': _switch}
 
-                    elif player:
-                        # Platform Selection for Dragging
-                        if player.edit_platforms and m_pos[0] < play_w and m_pos[1] > 70:
+                        elif player.edit_platforms and m_pos[0] < play_w and m_pos[1] > 70:
                             cx, cy = play_w // 2, play_h // 2
                             cam_x, cam_y = player.cam_x, player.cam_y
                             hit = False
+                            # Check Platforms
                             for i, p in enumerate(player.platforms):
                                 rect = pygame.Rect(cx+(p.x-cam_x)*player.zoom, cy+(p.y-cam_y)*player.zoom, p.w*player.zoom, p.h*player.zoom)
-                                if rect.collidepoint(m_pos):
-                                    player.selected_plat = i
+                                handle = pygame.Rect(rect.right-10, rect.bottom-10, 10, 10)
+                                if handle.collidepoint(m_pos):
+                                    player.selected_plat = i; player.resize_mode = True; hit = True; break
+                                elif rect.collidepoint(m_pos):
+                                    player.selected_plat = i; player.resize_mode = False
                                     player.drag_offset = (p.x - (cam_x + (m_pos[0]-cx)/player.zoom), p.y - (cam_y + (m_pos[1]-cy)/player.zoom))
-                                    hit = True
-                                    break
+                                    hit = True; break
+                            # Check Boxes if not hit
+                            if not hit and hasattr(player, "solid_boxes"):
+                                for i, b in enumerate(player.solid_boxes):
+                                    rect = pygame.Rect(cx+(b.x-cam_x)*player.zoom, cy+(b.y-cam_y)*player.zoom, b.w*player.zoom, b.h*player.zoom)
+                                    handle = pygame.Rect(rect.right-10, rect.bottom-10, 10, 10)
+                                    if handle.collidepoint(m_pos):
+                                        player.selected_plat = i + 1000; player.resize_mode = True; hit = True; break
+                                    elif rect.collidepoint(m_pos):
+                                        player.selected_plat = i + 1000; player.resize_mode = False
+                                        player.drag_offset = (b.x - (cam_x + (m_pos[0]-cx)/player.zoom), b.y - (cam_y + (m_pos[1]-cy)/player.zoom))
+                                        hit = True; break
                             if not hit: player.selected_plat = None
 
-                        # Tabs Selection
-                        elif player:
-                            for i in range(len(player.profiles)):
-                                if pygame.Rect(400+i*95, 5, 90, 28).collidepoint(m_pos): player.cur_profile_idx = i
-                            for i in range(len(player.sources)):
-                                if pygame.Rect(400+i*110, 38, 105, 28).collidepoint(m_pos): player.cur_source_idx = i
-
-                        if play_w < m_pos[0] < sw:
+                        elif play_w < m_pos[0] < sw:
                             if show_settings:
                                 cy = 60 + settings_scroll
                                 for cat in folds.keys():
@@ -630,33 +750,49 @@ def main():
                                                 else: 
                                                     cur_p.mappings[selected_slot].append(target)
                 
-                # Right Click Handling (Remove Tabs / Clear Mappings)
-                elif event.button == 3 and player:
-                    if m_pos[1] < 70 and m_pos[0] < play_w:
-                        # Remove Profile (NPC)
-                        for i, p in enumerate(player.profiles):
-                            if pygame.Rect(400+i*95, 5, 90, 28).collidepoint(m_pos):
-                                if i == 0: continue # Don't remove PLAYER
-                                player.profiles.pop(i)
-                                player.ai_list = [ai for ai in player.ai_list if ai.profile != p]
-                                if player.cur_profile_idx >= len(player.profiles): player.cur_profile_idx = max(0, len(player.profiles)-1)
-                                break
-                        # Remove Source
-                        for i, s in enumerate(player.sources):
-                            if pygame.Rect(400+i*110, 38, 105, 28).collidepoint(m_pos):
-                                used = False
-                                for prof in player.profiles:
-                                    if prof.source_idx == i: used = True; break
-                                if not used:
-                                    player.sources.pop(i)
-                                    if player.cur_source_idx >= len(player.sources): player.cur_source_idx = max(0, len(player.sources)-1)
-                                else:
-                                    log_debug("[WARN] Cannot remove source in use.")
-                                break
-                    elif play_w < m_pos[0] < sw and player.profiles:
-                        cur_p = player.profiles[player.cur_profile_idx]
-                        for i, action in enumerate(cur_p.mappings.keys()):
-                            if pygame.Rect(play_w+20, 85+i*38+slot_scroll, sidebar_w-40, 34).collidepoint(m_pos): cur_p.mappings[action] = []
+                    # Right Click Handling (Remove Tabs / Clear Mappings)
+                    elif event.button == 3 and player:
+                        if m_pos[1] < 70 and m_pos[0] < play_w:
+                            # Remove Profile (NPC)
+                            for i, p in enumerate(player.profiles):
+                                if pygame.Rect(400+i*95, 5, 90, 28).collidepoint(m_pos):
+                                    if i == 0: continue # Don't remove PLAYER
+                                    player.profiles.pop(i)
+                                    player.ai_list = [ai for ai in player.ai_list if ai.profile != p]
+                                    if player.cur_profile_idx >= len(player.profiles): player.cur_profile_idx = max(0, len(player.profiles)-1)
+                                    break
+                            # Remove Source
+                            for i, s in enumerate(player.sources):
+                                if pygame.Rect(400+i*110, 38, 105, 28).collidepoint(m_pos):
+                                    used = False
+                                    for prof in player.profiles:
+                                        if prof.source_idx == i: used = True; break
+                                    if not used:
+                                        player.sources.pop(i)
+                                        if player.cur_source_idx > i: player.cur_source_idx -= 1
+                                        elif player.cur_source_idx >= len(player.sources): player.cur_source_idx = max(0, len(player.sources)-1)
+                                        # Shift profile indices
+                                        for prof in player.profiles:
+                                            if prof.source_idx > i: prof.source_idx -= 1
+                                            for slot, mappings in prof.mappings.items():
+                                                prof.mappings[slot] = [m for m in mappings if m[0] != i]
+                                                for mapping in prof.mappings[slot]:
+                                                    if mapping[0] > i: mapping[0] -= 1
+                                        # Shift active action indices
+                                        for ent in [player] + player.ai_list:
+                                            if ent.active_tag_info and ent.active_tag_info[0] == i:
+                                                ent.active_tag_info = None; ent.active_action_slot = None
+                                            elif ent.active_tag_info and ent.active_tag_info[0] > i: ent.active_tag_info[0] -= 1
+                                            ent.action_queue = [act for act in ent.action_queue if act[0] != i]
+                                            for act in ent.action_queue:
+                                                if act[0] > i: act[0] -= 1
+                                    else:
+                                        log_debug("[WARN] Cannot remove source in use.")
+                                    break
+                        elif play_w < m_pos[0] < sw and player.profiles:
+                            cur_p = player.profiles[player.cur_profile_idx]
+                            for i, action in enumerate(cur_p.mappings.keys()):
+                                if pygame.Rect(play_w+20, 85+i*38+slot_scroll, sidebar_w-40, 34).collidepoint(m_pos): cur_p.mappings[action] = []
             if event.type == pygame.MOUSEBUTTONUP and event.button == 3: is_dragging_cam = False
             if event.type == pygame.KEYDOWN and player:
                 if event.key == pygame.K_F5: 
@@ -669,18 +805,18 @@ def main():
                         player.grounded = False
                     elif player.jumps_left > 0:
                         player.vy = player.jump_power; player.grounded = False; player.jumps_left -= 1
-                elif event.key == pygame.K_g:
+                elif event.key == player.key_map["SUMMON"]:
                     for i, ai in enumerate(player.ai_list):
                         offset = random.choice([-80, 80]) * (i + 1)
                         ai.x, ai.y = player.x + offset, player.y
                         ai.trigger_action("Swap_Enter")
-                elif event.key == pygame.K_z: player.handle_attack(pygame.key.get_pressed())
-                elif event.key == pygame.K_x: player.trigger_action("DASH")
-                elif event.key == pygame.K_c: player.trigger_action("SKILL 1")
-                elif event.key == pygame.K_b: player.trigger_action("SKILL 2")
-                elif event.key == pygame.K_n: player.trigger_action("SKILL 3")
-                elif event.key == pygame.K_v: player.trigger_action("HURT")
-                elif event.key == pygame.K_t: player.trigger_action("Swap_Exit")
+                elif event.key == player.key_map["ATTACK"]: player.handle_attack(pygame.key.get_pressed())
+                elif event.key == player.key_map["DASH"]: player.trigger_action("DASH")
+                elif event.key == player.key_map["SKILL1"]: player.trigger_action("SKILL 1")
+                elif event.key == player.key_map["SKILL2"]: player.trigger_action("SKILL 2")
+                elif event.key == player.key_map["SKILL3"]: player.trigger_action("SKILL 3")
+                elif event.key == player.key_map["HURT"]: player.trigger_action("HURT")
+                elif event.key == player.key_map["SWAP"]: player.trigger_action("Swap_Exit")
                 elif event.key == pygame.K_f: player.cam_follow = True
                 elif event.key == pygame.K_h: player.show_hitboxes = not player.show_hitboxes
                 elif event.key == pygame.K_p: player.is_paused = not player.is_paused
@@ -723,9 +859,24 @@ def main():
                 if player.edit_platforms and player.selected_plat is not None and pygame.mouse.get_pressed()[0]:
                     cx, cy = play_w // 2, play_h // 2
                     cam_x, cam_y = player.cam_x, player.cam_y
-                    mx, my = (m_pos[0]-cx)/player.zoom + cam_x, (m_pos[1]-cy)/player.zoom + cam_y
-                    player.platforms[player.selected_plat].x = mx + player.drag_offset[0]
-                    player.platforms[player.selected_plat].y = my + player.drag_offset[1]
+                    
+                    if hasattr(player, 'resize_mode') and player.resize_mode:
+                        mx, my = (m_pos[0]-cx)/player.zoom + cam_x, (m_pos[1]-cy)/player.zoom + cam_y
+                        if player.selected_plat < 1000:
+                            p = player.platforms[player.selected_plat]
+                            p.w = max(20, mx - p.x); p.h = max(20, my - p.y)
+                        else:
+                            b = player.solid_boxes[player.selected_plat - 1000]
+                            b.w = max(20, mx - b.x); b.h = max(20, my - b.y)
+                    else:
+                        mx, my = (m_pos[0]-cx)/player.zoom + cam_x, (m_pos[1]-cy)/player.zoom + cam_y
+                        if player.selected_plat < 1000:
+                            player.platforms[player.selected_plat].x = mx + player.drag_offset[0]
+                            player.platforms[player.selected_plat].y = my + player.drag_offset[1]
+                        else:
+                            player.solid_boxes[player.selected_plat - 1000].x = mx + player.drag_offset[0]
+                            player.solid_boxes[player.selected_plat - 1000].y = my + player.drag_offset[1]
+                
                 elif is_dragging_cam: 
                     dx, dy = m_pos[0] - last_m_pos[0], m_pos[1] - last_m_pos[1]
                     player.cam_x -= dx / player.zoom; player.cam_y -= dy / player.zoom; last_m_pos = m_pos
@@ -738,21 +889,33 @@ def main():
                     if folds[cat]:
                         if cat == "PHYSICS":
                             for i, (l, mn, mx, at, inv) in enumerate([("Dash Vel",10,50,"dash_speed",0), ("Jump Pow",10,25,"jump_power",1), ("PBomb Spd",10,60,"powerbomb_speed",0), ("Cam Offset",-400,100,"cam_v_offset",0), ("Plat Alpha",0,255,"platform_alpha",0)]):
-                                y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn) if not inv else (-v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(80+n*(sidebar_w-120)), y+9), 8)
-                                if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn) if not inv else -(mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn))); player.save_settings()
+                                y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); 
+                                # Slider Bar
+                                sl = pygame.Rect(110, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn) if not inv else (-v-mn)/(mx-mn); 
+                                pygame.draw.circle(set_surf, (59,130,246), (int(110+n*(sidebar_w-160)), y+9), 8)
+                                # Value Text
+                                val_txt = f"{int(v)}" if at == "platform_alpha" or at == "cam_v_offset" else f"{v:.1f}"
+                                set_surf.blit(font_s.render(val_txt, True, (200,200,200)), (sidebar_w-40, y))
+                                
+                                if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if not inv else -(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
                             cy += 230
                         elif cat == "AI & COMBAT":
                             for i, (l, mn, mx, at) in enumerate([("AI Count",0,10,"target_ai_count"), ("Atk Forward",0,30,"atk_forward_v")]):
-                                y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(80+n*(sidebar_w-120)), y+9), 8)
-                                if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn) if at != "target_ai_count" else int(mn+(m_pos[0]-(play_w+80))/(sidebar_w-120)*(mx-mn))); player.save_settings()
+                                y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(110, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(110+n*(sidebar_w-160)), y+9), 8)
+                                set_surf.blit(font_s.render(f"{v:.1f}", True, (200,200,200)), (sidebar_w-40, y))
+                                if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if at != "target_ai_count" else int(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
                             cy += 90
                         elif cat == "JUICE & VFX":
                             for i, (l, at) in enumerate([("Enable Shake", "shake_enabled"), ("Enable Ghost", "vfx_enabled")]):
                                 y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); btn = pygame.Rect(sidebar_w-60, y-5, 40, 20); val = getattr(player, at); pygame.draw.rect(set_surf, (22, 163, 74) if val else (220, 38, 38), btn, border_radius=10); pygame.draw.circle(set_surf, (255,255,255), (btn.x+30 if val else btn.x+10, btn.y+10), 8)
                                 if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+btn.x, y-5, btn.w, btn.h).collidepoint(m_pos):
                                     if not hasattr(player, "_btn_lock"): setattr(player, at, not val); player._btn_lock = 10; player.save_settings()
-                            y = cy + 85; set_surf.blit(font_s.render("Shake Power", True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); n = player.base_shake / 3.0; pygame.draw.circle(set_surf, (220, 38, 38), (int(80+n*(sidebar_w-120)), y+9), 8)
-                            if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y, sidebar_w-120, 20).inflate(0,10).collidepoint(m_pos): player.base_shake = ((m_pos[0]-(play_w+80))/(sidebar_w-120)) * 3.0; player.save_settings()
+                            y = cy + 85; set_surf.blit(font_s.render("Shake Power", True, (150,150,150)), (20, y)); 
+                            sl = pygame.Rect(110, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); n = player.base_shake / 3.0; 
+                            pygame.draw.circle(set_surf, (220, 38, 38), (int(110+n*(sidebar_w-160)), y+9), 8)
+                            set_surf.blit(font_s.render(f"{player.base_shake:.1f}", True, (200,200,200)), (sidebar_w-40, y))
+                            
+                            if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos): player.base_shake = ((m_pos[0]-(play_w+110))/(sidebar_w-160)) * 3.0; player.save_settings()
                             if hasattr(player, "_btn_lock"): 
                                 player._btn_lock -= 1; 
                                 if player._btn_lock <= 0: delattr(player, "_btn_lock")
@@ -793,6 +956,11 @@ def main():
                                 pr = pygame.Rect(20+i*45, cy, 35, 30); pygame.draw.rect(set_surf, p, pr, border_radius=3)
                                 if pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20+i*45, cy, 35, 30).collidepoint(m_pos): player.bg_color = list(p); player.save_settings()
                             cy += 60
+                        elif cat == "CONTROLS":
+                            for i, (act, k) in enumerate(player.key_map.items()):
+                                y = cy+i*30; set_surf.blit(font_s.render(act, True, (150,150,150)), (20, y))
+                                set_surf.blit(font_s.render(pygame.key.name(k).upper(), True, (255,255,255)), (120, y))
+                            cy += len(player.key_map) * 30 + 10
                 screen.blit(set_surf, (play_w, 0)); pygame.draw.line(screen, (59, 130, 246), (play_w, 0), (play_w, sh), 2)
             else:
                 slot_clip = pygame.Surface((sidebar_w-20, 380), pygame.SRCALPHA)
