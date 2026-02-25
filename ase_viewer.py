@@ -331,8 +331,12 @@ class AsepritePlayer:
                 ready_tags = [t for t in tags if "ready" in t[1].lower()]
                 loop_tags = [t for t in tags if "loop" in t[1].lower()]
                 if ready_tags and loop_tags:
-                    log_debug(f"[FALL] Sequence: Ready({ready_tags[0][1]}) -> Loop({loop_tags[0][1]})")
-                    self.action_queue = list(ready_tags + loop_tags)
+                    if getattr(self, "drop_through_timer", 0) > 0:
+                        log_debug(f"[FALL] Drop Through Sequence: Loop({loop_tags[0][1]})")
+                        self.action_queue = list(loop_tags)
+                    else:
+                        log_debug(f"[FALL] Sequence: Ready({ready_tags[0][1]}) -> Loop({loop_tags[0][1]})")
+                        self.action_queue = list(ready_tags + loop_tags)
                 elif tags:
                     log_debug(f"[FALL] Tags: {[t[1] for t in tags]}")
                     self.action_queue = list(tags)
@@ -571,15 +575,15 @@ class AsepritePlayer:
     def draw(self, screen, play_w, play_h):
         if not hasattr(self, "solid_boxes"): self.solid_boxes = []
         cx, cy = play_w // 2, play_h // 2; off_x = random.uniform(-self.shake_intensity*self.base_shake, self.shake_intensity*self.base_shake) if self.shake_timer > 0 else 0; off_y = random.uniform(-self.shake_intensity*self.base_shake, self.shake_intensity*self.base_shake) if self.shake_timer > 0 else 0; cam_x, cam_y = self.cam_x + off_x, self.cam_y + off_y; gx, gy = cx - (cam_x % 100)*self.zoom, cy - (cam_y % 100)*self.zoom
-        for i in range(-10, 20): pygame.draw.line(screen, self.grid_color, (gx+i*100*self.zoom, 0), (gx+i*100*self.zoom, play_h), 1); pygame.draw.line(screen, self.grid_color, (0, gy+i*100*self.zoom), (play_w, gy+i*100*self.zoom), 1)
+        for i in range(-10, 20): pygame.draw.line(screen, self.grid_color, (int(gx+i*100*self.zoom), 0), (int(gx+i*100*self.zoom), play_h), 1); pygame.draw.line(screen, self.grid_color, (0, int(gy+i*100*self.zoom)), (play_w, int(gy+i*100*self.zoom)), 1)
         if self.bg_img:
             if self.bg_needs_update or self.cached_bg is None: self.update_bg_cache()
-            bx = cx + (self.bg_off_x - cam_x * self.bg_parallax) * self.zoom - self.cached_bg.get_width() // 2; by = cy + (self.bg_off_y - cam_y * self.bg_parallax) * self.zoom - self.cached_bg.get_height() // 2; screen.blit(self.cached_bg, (bx, by))
+            bx = cx + (self.bg_off_x - cam_x * self.bg_parallax) * self.zoom - self.cached_bg.get_width() // 2; by = cy + (self.bg_off_y - cam_y * self.bg_parallax) * self.zoom - self.cached_bg.get_height() // 2; screen.blit(self.cached_bg, (int(bx), int(by)))
         
         # Draw Platforms
         plat_surf = pygame.Surface((play_w, play_h), pygame.SRCALPHA)
         for i, p in enumerate(self.platforms): 
-            px, py, pw, ph = cx+(p.x-cam_x)*self.zoom, cy+(p.y-cam_y)*self.zoom, p.w*self.zoom, p.h*self.zoom
+            px, py, pw, ph = int(cx+(p.x-cam_x)*self.zoom), int(cy+(p.y-cam_y)*self.zoom), int(p.w*self.zoom), int(p.h*self.zoom)
             col = (255, 255, 0, self.platform_alpha) if self.edit_platforms and self.selected_plat == i else (80, 80, 100, self.platform_alpha)
             pygame.draw.rect(plat_surf, col, (px, py, pw, ph), border_radius=int(3*self.zoom))
             # Resize Handle (Bottom-Right)
@@ -588,7 +592,7 @@ class AsepritePlayer:
 
         # Draw Solid Boxes
         for i, b in enumerate(self.solid_boxes):
-            px, py, pw, ph = cx+(b.x-cam_x)*self.zoom, cy+(b.y-cam_y)*self.zoom, b.w*self.zoom, b.h*self.zoom
+            px, py, pw, ph = int(cx+(b.x-cam_x)*self.zoom), int(cy+(b.y-cam_y)*self.zoom), int(b.w*self.zoom), int(b.h*self.zoom)
             col = (255, 100, 0, self.platform_alpha) if self.edit_platforms and self.selected_plat == i + 1000 else (50, 50, 60, self.platform_alpha) # Use offset ID for boxes
             pygame.draw.rect(plat_surf, col, (px, py, pw, ph))
             if self.edit_platforms and self.selected_plat == i + 1000:
@@ -596,7 +600,7 @@ class AsepritePlayer:
 
         screen.blit(plat_surf, (0,0))
         
-        pygame.draw.line(screen, (100,100,100), (cx+(0-cam_x)*self.zoom, cy+(500-cam_y)*self.zoom), (cx+(5000-cam_x)*self.zoom, cy+(500-cam_y)*self.zoom), 2)
+        pygame.draw.line(screen, (100,100,100), (int(cx+(0-cam_x)*self.zoom), int(cy+(500-cam_y)*self.zoom)), (int(cx+(5000-cam_x)*self.zoom), int(cy+(500-cam_y)*self.zoom)), 2)
         if self.vfx_enabled:
             for ai in self.afterimages:
                 src = self.sources[ai['s']]; sc = src.get_frame(ai['f'], self.zoom, ai['right'])
@@ -625,7 +629,7 @@ class AsepritePlayer:
                         by = int(cy + (self.y - cam_y)*self.zoom + oy)
                         
                         stroke_surf = pygame.Surface((sc.get_width(), sc.get_height()), pygame.SRCALPHA)
-                        pygame.draw.lines(stroke_surf, (255, 255, 0, alpha), True, points, max(1, int(2 * self.zoom)))
+                        pygame.draw.lines(stroke_surf, (255, 255, 0, alpha), True, points, max(1, int(self.zoom)))
                         screen.blit(stroke_surf, (bx, by))
 
         for ai in self.ai_list + getattr(self, 'temp_ai_list', []):
@@ -655,7 +659,7 @@ class AsepritePlayer:
             screen.blit(font_b.render("NO", True, (255,255,255)), (no_btn.x+20, no_btn.y+5))
 
 def main():
-    pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE); clock = pygame.time.Clock(); player = AsepritePlayer(); player.load_project(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "VIEWPORT": True, "BG IMAGE": True, "BG COLOR": True, "CONTROLS": False}
+    pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE | pygame.DOUBLEBUF | pygame.HWSURFACE, vsync=1); clock = pygame.time.Clock(); player = AsepritePlayer(); player.load_project(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "VIEWPORT": True, "BG IMAGE": True, "BG COLOR": True, "CONTROLS": False}
     binding_key = None
     while True:
         raw_dt = clock.tick(60)
@@ -702,7 +706,7 @@ def main():
             if event.type == pygame.QUIT:
                 if player: player.save_project(); player.save_settings()
                 pygame.quit(); sys.exit()
-            if event.type == pygame.VIDEORESIZE: screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+            if event.type == pygame.VIDEORESIZE: screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE | pygame.DOUBLEBUF | pygame.HWSURFACE, vsync=1)
             if event.type == pygame.DROPFILE:
                 if not player.profiles: player.add_source(event.file); player.add_profile("PLAYER", 0)
                 else: sid = player.add_source(event.file); player.add_profile(f"NPC_{len(player.profiles)}", sid, is_npc=True)
