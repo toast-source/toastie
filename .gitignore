@@ -1,4 +1,4 @@
-﻿node_modules/
+node_modules/
 dist/
 *.log
 temp.png
@@ -7,3 +7,4 @@ temp_export.png
 temp_export.json
 .env
 *.local
+__pycache__/
