@@ -1,9 +1,9 @@
 {
     "physics": {
-        "dash_speed": 12.0,
+        "dash_speed": 11.10344827586207,
         "jump_power": -18.0,
         "powerbomb_speed": 35.0,
-        "cam_v_offset": -69.65517241379314
+        "cam_v_offset": -120
     },
     "combat": {
         "atk_forward_v": 15.0
@@ -11,7 +11,7 @@
     "vfx": {
         "shake_enabled": true,
         "vfx_enabled": true,
-        "base_shake": 0.18620689655172412
+        "base_shake": 0.693103448275862
     },
     "viewport": {
         "show_viewport": true,
