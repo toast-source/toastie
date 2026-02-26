@@ -835,13 +835,14 @@ def main():
                                         if hr.collidepoint(m_pos): folds[cat] = not folds[cat]
                                         cy += 35
                                         if folds[cat]:
-                                            if cat == "PHYSICS": cy += 230
+                                            if cat == "PHYSICS": cy += 185
                                             elif cat == "AI & COMBAT": cy += 120 + max(0, ((len(player.profiles)-2)//4)*30)
                                             elif cat == "JUICE & VFX": cy += 130
                                             elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                             elif cat == "CAMERA": cy += 85
                                             elif cat == "BG IMAGE": cy += 250
-                                            elif cat == "BG COLOR": cy += 180
+                                            elif cat == "BG COLOR": cy += 170
+                                            elif cat == "CONTROLS": cy += len(player.key_map) * 30 + 10
                             else:
                                 cur_p = player.profiles[player.cur_profile_idx]
                                 # 1. Slot Area Selection (80 ~ 450)
@@ -966,7 +967,7 @@ def main():
                                 elif cat == "LAYERS" and player.sources: calc_h += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                 elif cat == "CAMERA": calc_h += 85
                                 elif cat == "BG IMAGE": calc_h += 250
-                                elif cat == "BG COLOR": calc_h += 180
+                                elif cat == "BG COLOR": calc_h += 170
                                 elif cat == "CONTROLS": calc_h += len(player.key_map) * 30 + 10
                         settings_scroll = max(min(0, settings_scroll + delta), -max(0, calc_h - sh + 100))
                     elif m_pos[1] < 460: 
