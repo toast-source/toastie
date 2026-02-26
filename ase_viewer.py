@@ -791,13 +791,15 @@ def main():
                                 for i in range(len(player.sources)):
                                     if pygame.Rect(400+i*110, 38, 105, 28).collidepoint(m_pos): 
                                         if player.cur_source_idx != i:
-                                            def _switch(idx=i):
-                                                player.cur_source_idx = idx
-                                                if player.profiles:
-                                                    p = player.profiles[player.cur_profile_idx]
-                                                    p.source_idx = idx
-                                                    player.auto_map_profile(p)
-                                            player.popup = {'msg': "Switch Source?", 'cb': _switch}
+                                            player.cur_source_idx = i # Always select the source to view tags
+                                            if player.profiles:
+                                                p = player.profiles[player.cur_profile_idx]
+                                                if p.source_idx != i:
+                                                    def _switch_prof(idx=i):
+                                                        p = player.profiles[player.cur_profile_idx]
+                                                        p.source_idx = idx
+                                                        player.auto_map_profile(p)
+                                                    player.popup = {'msg': "Map profile to this source?", 'cb': _switch_prof}
 
                         elif player.edit_platforms and m_pos[0] < play_w and m_pos[1] > 70:
                             cx, cy = play_w // 2, play_h // 2
