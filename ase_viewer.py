@@ -211,7 +211,7 @@ class AseAI:
 
 class AsepritePlayer:
     def __init__(self, initial_path=None):
-        self.sources = []; self.profiles = []; self.cur_profile_idx = 0; self.cur_source_idx = 0; self.spawn_x, self.spawn_y = 400, 500; self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = False; self.jumps_left = 2; self.facing_right = True; self.zoom = 3.0; self.dash_speed = 12.0; self.jump_power = -18.0; self.gravity = 1.0; self.atk_forward_v = 15.0; self.powerbomb_speed = 35.0; self.cam_v_offset = -120; self.pbomb_pause_timer = 0; self.loop_counter = 0; self.cam_x, self.cam_y = 400, 300; self.cam_follow = True; self.platforms = [pygame.Rect(200, 350, 200, 20), pygame.Rect(500, 200, 200, 20), pygame.Rect(-200, 250, 300, 20), pygame.Rect(900, 300, 400, 20)]; self.bg_img = None; self.bg_path = None; self.bg_off_x = self.bg_off_y = 0; self.bg_zoom = 1.0; self.bg_alpha = 255; self.bg_parallax = 0.1; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]; self.cached_bg = None; self.bg_needs_update = True; self.bg_last_mtime = 0; self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.temp_ai_list = []; self.target_ai_count = 0; self.swap_timer = 0; self.visible = True; self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True; self.target_w, self.target_h = 640, 360; self.show_viewport = True; self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 1.0; self.afterimages = []; self.vfx_enabled = True; self.ghost_timer = 0; self.platform_alpha = 150; self.edit_platforms = False; self.selected_plat = None; self.drag_offset = (0,0); self.drop_through_timer = 0
+        self.sources = []; self.profiles = []; self.cur_profile_idx = 0; self.cur_source_idx = 0; self.spawn_x, self.spawn_y = 400, 500; self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = False; self.jumps_left = 2; self.facing_right = True; self.zoom = 3.0; self.dash_speed = 12.0; self.jump_power = -18.0; self.gravity = 1.0; self.atk_forward_v = 15.0; self.powerbomb_speed = 35.0; self.cam_v_offset = -120; self.pbomb_pause_timer = 0; self.loop_counter = 0; self.cam_x, self.cam_y = 400, 300; self.cam_follow = True; self.platforms = [pygame.Rect(200, 350, 200, 20), pygame.Rect(500, 200, 200, 20), pygame.Rect(-200, 250, 300, 20), pygame.Rect(900, 300, 400, 20)]; self.bg_img = None; self.bg_path = None; self.bg_off_x = self.bg_off_y = 0; self.bg_zoom = 2.0; self.bg_alpha = 255; self.bg_parallax = 0.1; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]; self.cached_bg = None; self.bg_needs_update = True; self.bg_last_mtime = 0; self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.temp_ai_list = []; self.target_ai_count = 0; self.swap_timer = 0; self.visible = True; self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True; self.target_w, self.target_h = 640, 360; self.show_viewport = True; self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 1.0; self.afterimages = []; self.vfx_enabled = True; self.ghost_timer = 0; self.platform_alpha = 150; self.edit_platforms = False; self.selected_plat = None; self.drag_offset = (0,0); self.drop_through_timer = 0
         self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "HURT": pygame.K_v}
         self.popup = None
         if initial_path: self.add_source(initial_path); self.add_profile("PLAYER", 0)
@@ -263,6 +263,39 @@ class AsepritePlayer:
                     else: self.solid_boxes = []
             except: pass
         else: self.solid_boxes = []
+
+    def load_example(self):
+        proj_data = {"sources": ["C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Cailin_00_Public.aseprite", "C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Nisariel_00_Public_02.aseprite"], "profiles": [{"name": "PLAYER", "source_idx": 0, "mappings": {"IDLE": [[0, "Idle_(Loop)"]], "WALK": [[0, "Walk_(Loop)"]], "JUMP": [[0, "Jump_(Loop)"]], "FALL": [[0, "Fall_Ready"], [0, "Fall_(Loop)"]], "ComboAttack_1": [[0, "ComboAttack_1_Ready"], [0, "ComboAttack_1"]], "ComboAttack_2": [[0, "ComboAttack_2_Ready"], [0, "ComboAttack_2"]], "ComboAttack_3": [[0, "ComboAttack_3_Ready"], [0, "ComboAttack_3"]], "ComboAttack_4": [], "JUMPATTACK": [[0, "JumpAttack_Ready"], [0, "JumpAttack"]], "POWERBOMB": [[0, "PowerBomb_Ready"], [0, "PowerBomb_(Loop)"], [0, "PowerBomb_End"]], "DASH": [[0, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[0, "Swap_Enter"]], "Swap_Exit": [[0, "Swap_Exit_Ready"], [0, "Swap_Exit"]]}}, {"name": "NPC_1", "source_idx": 1, "mappings": {"IDLE": [[1, "Idle_(Loop)"]], "WALK": [[1, "Walk_(Loop)"]], "JUMP": [[1, "Jump(Loop)"]], "FALL": [[1, "Fall_Ready"], [1, "Fall_(Loop)"]], "ComboAttack_1": [[1, "ComboAttack_1_Ready"], [1, "ComboAttack_1"]], "ComboAttack_2": [[1, "ComboAttack_2"]], "ComboAttack_3": [[1, "ComboAttack_3_Ready"], [1, "ComboAttack_3"]], "ComboAttack_4": [[1, "ComboAttack_4_Ready"], [1, "ComboAttack_4"]], "JUMPATTACK": [[1, "JumpAttack_Ready"], [1, "JumpAttack"]], "POWERBOMB": [[1, "PowerBomb"], [1, "PowerBomb_(Loop)"], [1, "PowerBomb_End"]], "DASH": [[1, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[1, "Swap_Enter"]], "Swap_Exit": [[1, "Swap_Exit_Ready"], [1, "Swap_Exit"]]}}], "ai_count": 0, "platforms": [[262, 372, 200, 20], [500, 200, 200, 20], [-146, 248, 300, 20], [900, 300, 400, 20], [-1027, 207, 927, 51], [-164, 69, 254, 25]], "solid_boxes": [[-628, 254, 349, 275], [-739, -287, 614, 208]]}
+        set_data = {"physics": {"dash_speed": 12.0, "jump_power": -18.0, "powerbomb_speed": 35.0, "cam_v_offset": -120}, "combat": {"atk_forward_v": 15.0}, "vfx": {"shake_enabled": True, "vfx_enabled": True, "base_shake": 1.0}, "viewport": {"show_viewport": True, "target_w": 640, "target_h": 360}, "bg": {"bg_color": [17, 15, 18], "bg_alpha": 255, "bg_zoom": 2.0, "bg_parallax": 0.9862068965517241, "bg_off_x": 0, "bg_off_y": -130.0, "bg_path": "C:/Users/SOUTHPAW GAMES/Desktop/새 폴더/로비 컨셉94 (1).png"}, "ai": {"target_ai_count": 0}, "platforms": {"alpha": 5.275862068965517}}
+        
+        # Apply settings
+        for cat in set_data.values():
+            if isinstance(cat, dict):
+                for k, v in cat.items():
+                    if k == "alpha" and "platforms" in set_data: self.platform_alpha = v
+                    elif hasattr(self, k): setattr(self, k, v)
+        self.bg_path = set_data["bg"].get("bg_path", "")
+        if self.bg_path:
+            if not os.path.exists(self.bg_path): self.bg_path = os.path.basename(self.bg_path)
+            if os.path.exists(self.bg_path):
+                self.bg_img = pygame.image.load(self.bg_path).convert_alpha()
+                self.bg_needs_update = True
+                self.bg_last_mtime = os.path.getmtime(self.bg_path)
+                
+        # Apply project
+        self.sources = []; self.profiles = []; self.ai_list = []; self.temp_ai_list = []
+        for src_p in proj_data.get("sources", []):
+            if not os.path.exists(src_p): src_p = os.path.basename(src_p)
+            if os.path.exists(src_p): self.add_source(src_p)
+        for prof_data in proj_data.get("profiles", []):
+            new_prof = AseProfile(prof_data["name"], prof_data["source_idx"]); new_prof.mappings = prof_data["mappings"]; self.profiles.append(new_prof)
+            if prof_data["name"] != "PLAYER": self.ai_list.append(AseAI(self, new_prof))
+        
+        self.platforms = [pygame.Rect(d[0], d[1], d[2], d[3]) for d in proj_data["platforms"]]
+        self.solid_boxes = [pygame.Rect(d[0], d[1], d[2], d[3]) for d in proj_data["solid_boxes"]]
+        self.x, self.y = self.spawn_x, self.spawn_y; self.vx, self.vy = 0, 0
+        self.cam_x, self.cam_y = self.x, self.y
+        self.save_settings(); self.save_project()
     def add_source(self, path):
         try:
             new_source = AseSource(path, len(self.sources)); self.sources.append(new_source); self.cur_source_idx = new_source.id; return new_source.id
@@ -589,7 +622,7 @@ class AsepritePlayer:
         for i in range(-10, 20): pygame.draw.line(screen, self.grid_color, (int(gx+i*100*self.zoom), 0), (int(gx+i*100*self.zoom), play_h), 1); pygame.draw.line(screen, self.grid_color, (0, int(gy+i*100*self.zoom)), (play_w, int(gy+i*100*self.zoom)), 1)
         if self.bg_img:
             if self.bg_needs_update or self.cached_bg is None: self.update_bg_cache()
-            bx = cx + (self.bg_off_x - cam_x * self.bg_parallax) * self.zoom - self.cached_bg.get_width() // 2; by = cy + (self.bg_off_y - cam_y * self.bg_parallax) * self.zoom - self.cached_bg.get_height() // 2; screen.blit(self.cached_bg, (int(bx), int(by)))
+            bx = cx + (self.spawn_x - cam_x) * self.bg_parallax * self.zoom + self.bg_off_x * self.zoom - self.cached_bg.get_width() // 2; by = cy + (self.spawn_y - cam_y) * self.bg_parallax * self.zoom + self.bg_off_y * self.zoom - self.cached_bg.get_height() // 2; screen.blit(self.cached_bg, (int(bx), int(by)))
         
         # Draw Platforms
         plat_surf = pygame.Surface((play_w, play_h), pygame.SRCALPHA)
@@ -597,9 +630,13 @@ class AsepritePlayer:
             px, py, pw, ph = int(cx+(p.x-cam_x)*self.zoom), int(cy+(p.y-cam_y)*self.zoom), int(p.w*self.zoom), int(p.h*self.zoom)
             col = (255, 255, 0, self.platform_alpha) if self.edit_platforms and self.selected_plat == i else (80, 80, 100, self.platform_alpha)
             pygame.draw.rect(plat_surf, col, (px, py, pw, ph), border_radius=int(3*self.zoom))
-            # Resize Handle (Bottom-Right)
             if self.edit_platforms and self.selected_plat == i:
+                # Resize Handle (Bottom-Right)
                 pygame.draw.rect(plat_surf, (255, 0, 0), (px+pw-10, py+ph-10, 10, 10))
+                # Delete Button (Top-Right)
+                pygame.draw.rect(plat_surf, (220, 38, 38), (px+pw-15, py-15, 30, 30), border_radius=15)
+                pygame.draw.line(plat_surf, (255, 255, 255), (px+pw-7, py-7), (px+pw+7, py+7), 3)
+                pygame.draw.line(plat_surf, (255, 255, 255), (px+pw+7, py-7), (px+pw-7, py+7), 3)
 
         # Draw Solid Boxes
         for i, b in enumerate(self.solid_boxes):
@@ -608,6 +645,10 @@ class AsepritePlayer:
             pygame.draw.rect(plat_surf, col, (px, py, pw, ph))
             if self.edit_platforms and self.selected_plat == i + 1000:
                 pygame.draw.rect(plat_surf, (255, 0, 0), (px+pw-10, py+ph-10, 10, 10))
+                # Delete Button (Top-Right)
+                pygame.draw.rect(plat_surf, (220, 38, 38), (px+pw-15, py-15, 30, 30), border_radius=15)
+                pygame.draw.line(plat_surf, (255, 255, 255), (px+pw-7, py-7), (px+pw+7, py+7), 3)
+                pygame.draw.line(plat_surf, (255, 255, 255), (px+pw+7, py-7), (px+pw-7, py+7), 3)
 
         screen.blit(plat_surf, (0,0))
         
@@ -678,7 +719,7 @@ class AsepritePlayer:
 
 def main():
     pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE | pygame.DOUBLEBUF | pygame.HWSURFACE, vsync=1); clock = pygame.time.Clock(); player = AsepritePlayer(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "CAMERA": True, "BG IMAGE": True, "BG COLOR": True, "CONTROLS": False}
-    binding_key = None
+    binding_key = None; active_input_attr = None; input_text = ""
     while True:
         raw_dt = clock.tick(60)
         dt = raw_dt * player.playback_speed if player else raw_dt
@@ -687,14 +728,16 @@ def main():
         pygame.draw.rect(screen, (25, 25, 30), (play_w, 0, sidebar_w, sh)); pygame.draw.rect(screen, (35, 35, 40), (0, 0, play_w, 70))
         
         # --- TOP UI ROW 1 (Project & Files) ---
-        new_proj = pygame.Rect(10, 5, 100, 28); pygame.draw.rect(screen, (220, 38, 38), new_proj, border_radius=5); screen.blit(font_b.render("NEW PROJ", True, (255,255,255)), (new_proj.x+15, 10))
+        new_proj = pygame.Rect(10, 5, 80, 28); pygame.draw.rect(screen, (220, 38, 38), new_proj, border_radius=5); screen.blit(font_b.render("NEW", True, (255,255,255)), (new_proj.x+20, 10))
         
-        load_prev = pygame.Rect(115, 5, 90, 28); has_prev = os.path.exists("ase_project.json")
-        pygame.draw.rect(screen, (59, 130, 246) if has_prev else (60, 60, 70), load_prev, border_radius=5); screen.blit(font_b.render("LOAD", True, (255,255,255) if has_prev else (120, 120, 120)), (load_prev.x+25, 10))
+        example_btn = pygame.Rect(95, 5, 80, 28); pygame.draw.rect(screen, (34, 139, 34), example_btn, border_radius=5); screen.blit(font_b.render("EXAMPLE", True, (255,255,255)), (example_btn.x+10, 10))
         
-        add_src = pygame.Rect(210, 5, 90, 28); pygame.draw.rect(screen, (59, 130, 246), add_src, border_radius=5); screen.blit(font_b.render("+ SRC", True, (255,255,255)), (add_src.x+20, 10))
+        load_prev = pygame.Rect(180, 5, 70, 28); has_prev = os.path.exists("ase_project.json")
+        pygame.draw.rect(screen, (59, 130, 246) if has_prev else (60, 60, 70), load_prev, border_radius=5); screen.blit(font_b.render("LOAD", True, (255,255,255) if has_prev else (120, 120, 120)), (load_prev.x+15, 10))
         
-        add_npc = pygame.Rect(305, 5, 80, 28); pygame.draw.rect(screen, (22, 163, 74), add_npc, border_radius=5); screen.blit(font_b.render("+ NPC", True, (255,255,255)), (add_npc.x+15, 10))
+        add_src = pygame.Rect(255, 5, 70, 28); pygame.draw.rect(screen, (59, 130, 246), add_src, border_radius=5); screen.blit(font_b.render("+ SRC", True, (255,255,255)), (add_src.x+15, 10))
+        
+        add_npc = pygame.Rect(330, 5, 70, 28); pygame.draw.rect(screen, (22, 163, 74), add_npc, border_radius=5); screen.blit(font_b.render("+ NPC", True, (255,255,255)), (add_npc.x+15, 10))
 
         # --- TOP UI ROW 2 (Tools & Settings) ---
         edit_p_btn = pygame.Rect(10, 38, 100, 28); pygame.draw.rect(screen, (220, 38, 38) if player.edit_platforms else (60, 60, 70), edit_p_btn, border_radius=5); screen.blit(font_b.render("EDIT PLAT", True, (255,255,255)), (edit_p_btn.x+15, 43))
@@ -761,6 +804,8 @@ def main():
                             if new_proj.collidepoint(m_pos): 
                                 p = select_file([("Aseprite", "*.aseprite *.ase")])
                                 if p: player = AsepritePlayer(p)
+                            elif example_btn.collidepoint(m_pos) and player:
+                                player.load_example()
                             elif load_prev.collidepoint(m_pos) and has_prev: player.load_settings(); player.load_project()
                             elif add_src.collidepoint(m_pos) and player: 
                                 p = select_file([("Aseprite", "*.aseprite *.ase")])
@@ -805,27 +850,43 @@ def main():
                             cx, cy = play_w // 2, play_h // 2
                             cam_x, cam_y = player.cam_x, player.cam_y
                             hit = False
-                            # Check Platforms
-                            for i, p in enumerate(player.platforms):
-                                rect = pygame.Rect(cx+(p.x-cam_x)*player.zoom, cy+(p.y-cam_y)*player.zoom, p.w*player.zoom, p.h*player.zoom)
-                                handle = pygame.Rect(rect.right-10, rect.bottom-10, 10, 10)
-                                if handle.collidepoint(m_pos):
-                                    player.selected_plat = i; player.resize_mode = True; hit = True; break
-                                elif rect.collidepoint(m_pos):
-                                    player.selected_plat = i; player.resize_mode = False
-                                    player.drag_offset = (p.x - (cam_x + (m_pos[0]-cx)/player.zoom), p.y - (cam_y + (m_pos[1]-cy)/player.zoom))
-                                    hit = True; break
-                            # Check Boxes if not hit
-                            if not hit and hasattr(player, "solid_boxes"):
-                                for i, b in enumerate(player.solid_boxes):
-                                    rect = pygame.Rect(cx+(b.x-cam_x)*player.zoom, cy+(b.y-cam_y)*player.zoom, b.w*player.zoom, b.h*player.zoom)
+                            
+                            if getattr(player, 'selected_plat', None) is not None:
+                                if player.selected_plat < 1000 and player.selected_plat < len(player.platforms):
+                                    p = player.platforms[player.selected_plat]
+                                    px, py, pw = cx+(p.x-cam_x)*player.zoom, cy+(p.y-cam_y)*player.zoom, p.w*player.zoom
+                                    if pygame.Rect(px+pw-15, py-15, 30, 30).collidepoint(m_pos):
+                                        player.platforms.pop(player.selected_plat)
+                                        player.selected_plat = None; hit = True
+                                elif player.selected_plat >= 1000 and (player.selected_plat - 1000) < len(getattr(player, "solid_boxes", [])):
+                                    b = player.solid_boxes[player.selected_plat - 1000]
+                                    px, py, pw = cx+(b.x-cam_x)*player.zoom, cy+(b.y-cam_y)*player.zoom, b.w*player.zoom
+                                    if pygame.Rect(px+pw-15, py-15, 30, 30).collidepoint(m_pos):
+                                        player.solid_boxes.pop(player.selected_plat - 1000)
+                                        player.selected_plat = None; hit = True
+
+                            if not hit:
+                                # Check Platforms
+                                for i, p in enumerate(player.platforms):
+                                    rect = pygame.Rect(cx+(p.x-cam_x)*player.zoom, cy+(p.y-cam_y)*player.zoom, p.w*player.zoom, p.h*player.zoom)
                                     handle = pygame.Rect(rect.right-10, rect.bottom-10, 10, 10)
                                     if handle.collidepoint(m_pos):
-                                        player.selected_plat = i + 1000; player.resize_mode = True; hit = True; break
+                                        player.selected_plat = i; player.resize_mode = True; hit = True; break
                                     elif rect.collidepoint(m_pos):
-                                        player.selected_plat = i + 1000; player.resize_mode = False
-                                        player.drag_offset = (b.x - (cam_x + (m_pos[0]-cx)/player.zoom), b.y - (cam_y + (m_pos[1]-cy)/player.zoom))
+                                        player.selected_plat = i; player.resize_mode = False
+                                        player.drag_offset = (p.x - (cam_x + (m_pos[0]-cx)/player.zoom), p.y - (cam_y + (m_pos[1]-cy)/player.zoom))
                                         hit = True; break
+                                # Check Boxes if not hit
+                                if not hit and hasattr(player, "solid_boxes"):
+                                    for i, b in enumerate(player.solid_boxes):
+                                        rect = pygame.Rect(cx+(b.x-cam_x)*player.zoom, cy+(b.y-cam_y)*player.zoom, b.w*player.zoom, b.h*player.zoom)
+                                        handle = pygame.Rect(rect.right-10, rect.bottom-10, 10, 10)
+                                        if handle.collidepoint(m_pos):
+                                            player.selected_plat = i + 1000; player.resize_mode = True; hit = True; break
+                                        elif rect.collidepoint(m_pos):
+                                            player.selected_plat = i + 1000; player.resize_mode = False
+                                            player.drag_offset = (b.x - (cam_x + (m_pos[0]-cx)/player.zoom), b.y - (cam_y + (m_pos[1]-cy)/player.zoom))
+                                            hit = True; break
                             if not hit: player.selected_plat = None
 
                         elif play_w < m_pos[0] < sw:
@@ -913,7 +974,29 @@ def main():
                                 if pygame.Rect(play_w+20, 85+i*38+slot_scroll, sidebar_w-40, 34).collidepoint(m_pos): cur_p.mappings[action] = []
             if event.type == pygame.MOUSEBUTTONUP and event.button == 3: is_dragging_cam = False
             if event.type == pygame.KEYDOWN and player:
-                if binding_key:
+                if active_input_attr:
+                    if event.key == pygame.K_RETURN:
+                        try:
+                            val = float(input_text)
+                            if active_input_attr in ['target_ai_count', 'bg_color_0', 'bg_color_1', 'bg_color_2']: val = int(val)
+                            
+                            if active_input_attr.startswith('bg_color_'):
+                                idx = int(active_input_attr.split('_')[-1])
+                                player.bg_color[idx] = max(0, min(255, int(val)))
+                            else:
+                                setattr(player, active_input_attr, val)
+                            player.save_settings()
+                            if "bg_" in active_input_attr: player.bg_needs_update = True
+                        except ValueError:
+                            pass # Ignore invalid inputs
+                        active_input_attr = None
+                    elif event.key == pygame.K_ESCAPE:
+                        active_input_attr = None
+                    elif event.key == pygame.K_BACKSPACE:
+                        input_text = input_text[:-1]
+                    else:
+                        input_text += event.unicode
+                elif binding_key:
                     if event.key != pygame.K_ESCAPE:
                         existing_owner = next((k for k, v in player.key_map.items() if v == event.key), None)
                         if existing_owner:
@@ -926,6 +1009,12 @@ def main():
                     k = event.key; km = player.key_map
                     if k == pygame.K_F5: 
                         [s.export_and_load() for s in player.sources]; [player.auto_map_profile(p) for p in player.profiles]; [s.clear_cache() for s in player.sources]
+                    elif k in [pygame.K_DELETE, pygame.K_BACKSPACE] and getattr(player, 'edit_platforms', False) and player.selected_plat is not None:
+                        if player.selected_plat < 1000 and player.selected_plat < len(player.platforms):
+                            player.platforms.pop(player.selected_plat)
+                        elif player.selected_plat >= 1000 and (player.selected_plat - 1000) < len(getattr(player, 'solid_boxes', [])):
+                            player.solid_boxes.pop(player.selected_plat - 1000)
+                        player.selected_plat = None
                     elif k == km.get("JUMP") or k == pygame.K_UP:
                         keys = pygame.key.get_pressed()
                         if keys[pygame.K_DOWN] and player.grounded:
@@ -1023,16 +1112,30 @@ def main():
                                 sl = pygame.Rect(110, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn) if not inv else (-v-mn)/(mx-mn); 
                                 pygame.draw.circle(set_surf, (59,130,246), (int(110+n*(sidebar_w-160)), y+9), 8)
                                 # Value Text
-                                val_txt = f"{int(v)}" if at == "platform_alpha" or at == "cam_v_offset" else f"{v:.1f}"
-                                set_surf.blit(font_s.render(val_txt, True, (200,200,200)), (sidebar_w-40, y))
+                                txt_val = input_text + "|" if active_input_attr == at and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == at else (f"{int(v)}" if at in ["platform_alpha", "cam_v_offset"] else f"{v:.1f}"))
+                                bg_c = (30,30,35) if active_input_attr == at else (45,45,50)
+                                pygame.draw.rect(set_surf, bg_c, (sidebar_w-45, y-2, 40, 18), border_radius=3)
+                                set_surf.blit(font_s.render(txt_val, True, (255,255,255) if active_input_attr == at else (200,200,200)), (sidebar_w-42, y))
                                 
-                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if not inv else -(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
+                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0]:
+                                    if pygame.Rect(play_w+sidebar_w-45, y-2, 40, 18).collidepoint(m_pos):
+                                        if active_input_attr != at: active_input_attr = at; input_text = str(int(v)) if at in ["platform_alpha", "cam_v_offset"] else str(round(v, 1))
+                                    elif pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos):
+                                        active_input_attr = None
+                                        setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if not inv else -(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
                             cy += 185
                         elif cat == "AI & COMBAT":
                             for i, (l, mn, mx, at) in enumerate([("AI Count",0,10,"target_ai_count"), ("Atk Forward",0,30,"atk_forward_v")]):
                                 y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(110, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(110+n*(sidebar_w-160)), y+9), 8)
-                                set_surf.blit(font_s.render(f"{v:.1f}", True, (200,200,200)), (sidebar_w-40, y))
-                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if at != "target_ai_count" else int(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
+                                txt_val = input_text + "|" if active_input_attr == at and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == at else (f"{int(v)}" if at == "target_ai_count" else f"{v:.1f}"))
+                                pygame.draw.rect(set_surf, (30,30,35) if active_input_attr == at else (45,45,50), (sidebar_w-45, y-2, 40, 18), border_radius=3)
+                                set_surf.blit(font_s.render(txt_val, True, (255,255,255) if active_input_attr == at else (200,200,200)), (sidebar_w-42, y))
+                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0]:
+                                    if pygame.Rect(play_w+sidebar_w-45, y-2, 40, 18).collidepoint(m_pos):
+                                        if active_input_attr != at: active_input_attr = at; input_text = str(int(v)) if at == "target_ai_count" else str(round(v, 1))
+                                    elif pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos):
+                                        active_input_attr = None
+                                        setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if at != "target_ai_count" else int(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
                             
                             y = cy + 90
                             set_surf.blit(font_s.render("Swap Target:", True, (150,150,150)), (20, y))
@@ -1052,9 +1155,17 @@ def main():
                             y = cy + 85; set_surf.blit(font_s.render("Shake Power", True, (150,150,150)), (20, y)); 
                             sl = pygame.Rect(110, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); n = player.base_shake / 3.0; 
                             pygame.draw.circle(set_surf, (220, 38, 38), (int(110+n*(sidebar_w-160)), y+9), 8)
-                            set_surf.blit(font_s.render(f"{player.base_shake:.1f}", True, (200,200,200)), (sidebar_w-40, y))
                             
-                            if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos): player.base_shake = ((m_pos[0]-(play_w+110))/(sidebar_w-160)) * 3.0; player.save_settings()
+                            txt_val = input_text + "|" if active_input_attr == "base_shake" and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == "base_shake" else f"{player.base_shake:.1f}")
+                            pygame.draw.rect(set_surf, (30,30,35) if active_input_attr == "base_shake" else (45,45,50), (sidebar_w-45, y-2, 40, 18), border_radius=3)
+                            set_surf.blit(font_s.render(txt_val, True, (255,255,255) if active_input_attr == "base_shake" else (200,200,200)), (sidebar_w-42, y))
+                            
+                            if m_pos[1] > 70 and pygame.mouse.get_pressed()[0]:
+                                if pygame.Rect(play_w+sidebar_w-45, y-2, 40, 18).collidepoint(m_pos):
+                                    if active_input_attr != "base_shake": active_input_attr = "base_shake"; input_text = str(round(player.base_shake, 1))
+                                elif pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos):
+                                    active_input_attr = None
+                                    player.base_shake = ((m_pos[0]-(play_w+110))/(sidebar_w-160)) * 3.0; player.save_settings()
                             if hasattr(player, "_btn_lock"): 
                                 player._btn_lock -= 1; 
                                 if player._btn_lock <= 0: delattr(player, "_btn_lock")
@@ -1078,9 +1189,17 @@ def main():
                             sl = pygame.Rect(110, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl)
                             v = getattr(player, at); n = (v-mn)/(mx-mn)
                             pygame.draw.circle(set_surf, (59,130,246), (int(110+n*(sidebar_w-160)), y+9), 8)
-                            set_surf.blit(font_s.render(f"{int(v)}", True, (200,200,200)), (sidebar_w-40, y))
-                            if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos):
-                                setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn)); player.save_settings()
+                            
+                            txt_val = input_text + "|" if active_input_attr == at and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == at else f"{int(v)}")
+                            pygame.draw.rect(set_surf, (30,30,35) if active_input_attr == at else (45,45,50), (sidebar_w-45, y-2, 40, 18), border_radius=3)
+                            set_surf.blit(font_s.render(txt_val, True, (255,255,255) if active_input_attr == at else (200,200,200)), (sidebar_w-42, y))
+                            
+                            if m_pos[1] > 70 and pygame.mouse.get_pressed()[0]:
+                                if pygame.Rect(play_w+sidebar_w-45, y-2, 40, 18).collidepoint(m_pos):
+                                    if active_input_attr != at: active_input_attr = at; input_text = str(int(v))
+                                elif pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos):
+                                    active_input_attr = None
+                                    setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn)); player.save_settings()
                             
                             # Show Guide Button
                             y = cy + 45; set_surf.blit(font_s.render("Show 640x360 Guide", True, (150,150,150)), (20, y)); btn = pygame.Rect(sidebar_w-60, y-5, 40, 20); val = player.show_viewport; pygame.draw.rect(set_surf, (59, 130, 246) if val else (60, 60, 70), btn, border_radius=10); pygame.draw.circle(set_surf, (255,255,255), (btn.x+30 if val else btn.x+10, btn.y+10), 8)
@@ -1095,15 +1214,34 @@ def main():
                             cy += 40
                             for i, (l, mn, mx, at) in enumerate([("BG-X",-2000,2000,"bg_off_x"), ("BG-Y",-2000,2000,"bg_off_y"), ("Scale",0.1,10,"bg_zoom"), ("Alpha",0,255,"bg_alpha"), ("Parallax",0,1,"bg_parallax")]):
                                 y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (220,38,38), (int(80+n*(sidebar_w-160)), y+9), 8)
-                                val_str = f"{int(v)}" if "off" in at or "alpha" in at else f"{v:.2f}"
-                                set_surf.blit(font_s.render(val_str, True, (200,200,200)), (sidebar_w-40, y))
-                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+80, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos): setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-160)*(mx-mn)); player.save_settings(); player.bg_needs_update = True
+                                
+                                is_int_at = "off" in at or "alpha" in at
+                                txt_val = input_text + "|" if active_input_attr == at and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == at else (f"{int(v)}" if is_int_at else f"{v:.2f}"))
+                                pygame.draw.rect(set_surf, (30,30,35) if active_input_attr == at else (45,45,50), (sidebar_w-45, y-2, 40, 18), border_radius=3)
+                                set_surf.blit(font_s.render(txt_val, True, (255,255,255) if active_input_attr == at else (200,200,200)), (sidebar_w-42, y))
+                                
+                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0]:
+                                    if pygame.Rect(play_w+sidebar_w-45, y-2, 40, 18).collidepoint(m_pos):
+                                        if active_input_attr != at: active_input_attr = at; input_text = str(int(v)) if is_int_at else str(round(v, 2))
+                                    elif pygame.Rect(play_w+80, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos):
+                                        active_input_attr = None
+                                        setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-160)*(mx-mn)); player.save_settings(); player.bg_needs_update = True
                             cy += 210
                         elif cat == "BG COLOR":
                             for i, c in enumerate(['R','G','B']):
                                 y = cy+i*35; set_surf.blit(font_s.render(c, True, (150,150,150)), (20, y)); sl = pygame.Rect(40, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); pygame.draw.circle(set_surf, (220, 38, 38) if i==0 else (22, 163, 74) if i==1 else (59, 130, 246), (int(40+player.bg_color[i]/255*(sidebar_w-120)), y+9), 8)
-                                set_surf.blit(font_s.render(str(player.bg_color[i]), True, (200,200,200)), (sidebar_w-40, y))
-                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+40, y, sidebar_w-120, 20).collidepoint(m_pos): player.bg_color[i] = int((m_pos[0]-(play_w+40))/(sidebar_w-120)*255); player.save_settings()
+                                
+                                attr_name = f"bg_color_{i}"
+                                txt_val = input_text + "|" if active_input_attr == attr_name and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == attr_name else str(player.bg_color[i]))
+                                pygame.draw.rect(set_surf, (30,30,35) if active_input_attr == attr_name else (45,45,50), (sidebar_w-45, y-2, 40, 18), border_radius=3)
+                                set_surf.blit(font_s.render(txt_val, True, (255,255,255) if active_input_attr == attr_name else (200,200,200)), (sidebar_w-42, y))
+                                
+                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0]:
+                                    if pygame.Rect(play_w+sidebar_w-45, y-2, 40, 18).collidepoint(m_pos):
+                                        if active_input_attr != attr_name: active_input_attr = attr_name; input_text = str(player.bg_color[i])
+                                    elif pygame.Rect(play_w+40, y, sidebar_w-120, 20).collidepoint(m_pos):
+                                        active_input_attr = None
+                                        player.bg_color[i] = int((m_pos[0]-(play_w+40))/(sidebar_w-120)*255); player.save_settings()
                             cy += 110
                             for i, p in enumerate([(15,15,18), (120,120,120), (240,240,240), (34,139,34)]):
                                 pr = pygame.Rect(20+i*45, cy, 35, 30); pygame.draw.rect(set_surf, p, pr, border_radius=3)
