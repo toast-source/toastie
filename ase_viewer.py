@@ -211,17 +211,28 @@ class AseAI:
 
 class AsepritePlayer:
     def __init__(self, initial_path=None):
-        self.sources = []; self.profiles = []; self.cur_profile_idx = 0; self.cur_source_idx = 0; self.spawn_x, self.spawn_y = 400, 500; self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = False; self.jumps_left = 2; self.facing_right = True; self.zoom = 3.0; self.dash_speed = 12.0; self.jump_power = -18.0; self.gravity = 1.0; self.atk_forward_v = 15.0; self.powerbomb_speed = 35.0; self.cam_v_offset = -120; self.pbomb_pause_timer = 0; self.loop_counter = 0; self.cam_x, self.cam_y = 400, 300; self.cam_follow = True; self.platforms = [pygame.Rect(200, 350, 200, 20), pygame.Rect(500, 200, 200, 20), pygame.Rect(-200, 250, 300, 20), pygame.Rect(900, 300, 400, 20)]; self.bg_img = None; self.bg_path = None; self.bg_off_x = self.bg_off_y = 0; self.bg_zoom = 2.0; self.bg_alpha = 255; self.bg_parallax = 0.1; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]; self.cached_bg = None; self.bg_needs_update = True; self.bg_last_mtime = 0; self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.temp_ai_list = []; self.target_ai_count = 0; self.swap_timer = 0; self.visible = True; self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True; self.target_w, self.target_h = 640, 360; self.show_viewport = True; self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 1.0; self.afterimages = []; self.vfx_enabled = True; self.ghost_timer = 0; self.platform_alpha = 150; self.edit_platforms = False; self.selected_plat = None; self.drag_offset = (0,0); self.drop_through_timer = 0
+        self.sources = []; self.profiles = []; self.cur_profile_idx = 0; self.cur_source_idx = 0; self.spawn_x, self.spawn_y = 400, 500; self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = False; self.jumps_left = 2; self.facing_right = True; self.zoom = 3.0; self.dash_speed = 12.0; self.jump_power = -18.0; self.gravity = 1.0; self.atk_forward_v = 15.0; self.powerbomb_speed = 35.0; self.cam_v_offset = -120; self.pbomb_pause_timer = 0; self.loop_counter = 0; self.cam_x, self.cam_y = 400, 300; self.cam_follow = True; self.platforms = [pygame.Rect(200, 350, 200, 20), pygame.Rect(500, 200, 200, 20), pygame.Rect(-200, 250, 300, 20), pygame.Rect(900, 300, 400, 20)]
+        self.bg_layers = []; self.active_bg_layer = 0; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]
+        self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.temp_ai_list = []; self.target_ai_count = 0; self.swap_timer = 0; self.visible = True; self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True; self.target_w, self.target_h = 640, 360; self.show_viewport = True; self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 1.0; self.afterimages = []; self.vfx_enabled = True; self.ghost_timer = 0; self.platform_alpha = 150; self.edit_platforms = False; self.selected_plat = None; self.drag_offset = (0,0); self.drop_through_timer = 0
         self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "HURT": pygame.K_v}
         self.popup = None
         if initial_path: self.add_source(initial_path); self.add_profile("PLAYER", 0)
     def update_bg_cache(self):
-        if self.bg_img:
-            bw, bh = int(self.bg_img.get_width()*self.bg_zoom*self.zoom*0.5), int(self.bg_img.get_height()*self.bg_zoom*self.zoom*0.5); self.cached_bg = pygame.transform.scale(self.bg_img, (bw, bh))
-            if self.bg_alpha < 255: self.cached_bg.set_alpha(self.bg_alpha)
-        self.bg_needs_update = False
+        zoom_changed = getattr(self, '_last_bg_zoom', None) != self.zoom
+        if zoom_changed: self._last_bg_zoom = self.zoom
+        
+        for bg in self.bg_layers:
+            if zoom_changed or bg.get('needs_update', True) or bg.get('cached_bg') is None:
+                if bg.get('img'):
+                    bw, bh = int(bg['img'].get_width()*bg['zoom']*self.zoom*0.5), int(bg['img'].get_height()*bg['zoom']*self.zoom*0.5)
+                    bg['cached_bg'] = pygame.transform.scale(bg['img'], (max(1, bw), max(1, bh)))
+                    if bg['alpha'] < 255: bg['cached_bg'].set_alpha(bg['alpha'])
+                bg['needs_update'] = False
     def save_settings(self):
-        data = {"physics": {"dash_speed": self.dash_speed, "jump_power": self.jump_power, "powerbomb_speed": self.powerbomb_speed, "cam_v_offset": self.cam_v_offset}, "combat": {"atk_forward_v": self.atk_forward_v}, "vfx": {"shake_enabled": self.shake_enabled, "vfx_enabled": self.vfx_enabled, "base_shake": self.base_shake}, "viewport": {"show_viewport": self.show_viewport, "target_w": self.target_w, "target_h": self.target_h}, "bg": {"bg_color": self.bg_color, "bg_alpha": self.bg_alpha, "bg_zoom": self.bg_zoom, "bg_parallax": self.bg_parallax, "bg_off_x": self.bg_off_x, "bg_off_y": self.bg_off_y, "bg_path": self.bg_path}, "ai": {"target_ai_count": self.target_ai_count}, "platforms": {"alpha": self.platform_alpha}}
+        bg_layers_data = []
+        for bg in self.bg_layers:
+            bg_layers_data.append({"path": bg.get('path', ''), "off_x": bg.get('off_x', 0), "off_y": bg.get('off_y', 0), "zoom": bg.get('zoom', 2.0), "alpha": bg.get('alpha', 255), "parallax": bg.get('parallax', 1.0), "loop_x": bg.get('loop_x', False)})
+        data = {"physics": {"dash_speed": self.dash_speed, "jump_power": self.jump_power, "powerbomb_speed": self.powerbomb_speed, "cam_v_offset": self.cam_v_offset}, "combat": {"atk_forward_v": self.atk_forward_v}, "vfx": {"shake_enabled": self.shake_enabled, "vfx_enabled": self.vfx_enabled, "base_shake": self.base_shake}, "viewport": {"show_viewport": self.show_viewport, "target_w": self.target_w, "target_h": self.target_h}, "bg": {"bg_color": self.bg_color, "layers": bg_layers_data}, "ai": {"target_ai_count": self.target_ai_count}, "platforms": {"alpha": self.platform_alpha}}
         try:
             with open("ase_settings.json", "w") as f: json.dump(data, f, indent=4)
         except: pass
@@ -233,16 +244,35 @@ class AsepritePlayer:
             try:
                 with open("ase_settings.json", "r") as f:
                     data = json.load(f)
-                    for cat in data.values():
+                    for cat_name, cat in data.items():
                         if isinstance(cat, dict):
-                            for k, v in cat.items():
-                                if k == "alpha" and "platforms" in data: self.platform_alpha = v
-                                elif hasattr(self, k): setattr(self, k, v)
+                            if cat_name == "bg":
+                                if "bg_color" in cat: self.bg_color = cat["bg_color"]
+                                if "layers" in cat:
+                                    self.bg_layers = []
+                                    for l_data in cat["layers"]:
+                                        path = l_data.get("path", "")
+                                        if path and not os.path.exists(path): path = os.path.basename(path)
+                                        layer = {"path": path, "off_x": l_data.get("off_x", 0), "off_y": l_data.get("off_y", 0), "zoom": l_data.get("zoom", 2.0), "alpha": l_data.get("alpha", 255), "parallax": l_data.get("parallax", 1.0), "loop_x": l_data.get("loop_x", False), "img": None, "cached_bg": None, "needs_update": True, "last_mtime": 0}
+                                        if os.path.exists(path):
+                                            layer["img"] = pygame.image.load(path).convert_alpha()
+                                            layer["last_mtime"] = os.path.getmtime(path)
+                                        self.bg_layers.append(layer)
+                                elif "bg_path" in cat: # Legacy support
+                                    path = cat["bg_path"]
+                                    if path and not os.path.exists(path): path = os.path.basename(path)
+                                    layer = {"path": path, "off_x": cat.get("bg_off_x", 0), "off_y": cat.get("bg_off_y", 0), "zoom": cat.get("bg_zoom", 2.0), "alpha": cat.get("bg_alpha", 255), "parallax": cat.get("bg_parallax", 1.0), "loop_x": False, "img": None, "cached_bg": None, "needs_update": True, "last_mtime": 0}
+                                    if os.path.exists(path):
+                                        layer["img"] = pygame.image.load(path).convert_alpha()
+                                        layer["last_mtime"] = os.path.getmtime(path)
+                                    self.bg_layers = [layer]
+                            else:
+                                for k, v in cat.items():
+                                    if k == "alpha" and "platforms" in data: self.platform_alpha = v
+                                    elif hasattr(self, k): setattr(self, k, v)
                     if "controls" in data:
                         self.key_map = data["controls"]
                         if "JUMP" not in self.key_map: self.key_map["JUMP"] = pygame.K_SPACE
-                if self.bg_path and os.path.exists(self.bg_path): 
-                    self.bg_img = pygame.image.load(self.bg_path).convert_alpha(); self.bg_needs_update = True; self.bg_last_mtime = os.path.getmtime(self.bg_path)
             except: pass
     def save_project(self):
         project = {"sources": [s.file_path for s in self.sources], "profiles": [{"name": p.name, "source_idx": p.source_idx, "mappings": p.mappings} for p in self.profiles], "ai_count": self.target_ai_count, "platforms": [[p.x, p.y, p.w, p.h] for p in self.platforms], "solid_boxes": [[b.x, b.y, b.w, b.h] for b in self.solid_boxes]}
@@ -266,21 +296,27 @@ class AsepritePlayer:
 
     def load_example(self):
         proj_data = {"sources": ["C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Cailin_00_Public.aseprite", "C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Nisariel_00_Public_02.aseprite"], "profiles": [{"name": "PLAYER", "source_idx": 0, "mappings": {"IDLE": [[0, "Idle_(Loop)"]], "WALK": [[0, "Walk_(Loop)"]], "JUMP": [[0, "Jump_(Loop)"]], "FALL": [[0, "Fall_Ready"], [0, "Fall_(Loop)"]], "ComboAttack_1": [[0, "ComboAttack_1_Ready"], [0, "ComboAttack_1"]], "ComboAttack_2": [[0, "ComboAttack_2_Ready"], [0, "ComboAttack_2"]], "ComboAttack_3": [[0, "ComboAttack_3_Ready"], [0, "ComboAttack_3"]], "ComboAttack_4": [], "JUMPATTACK": [[0, "JumpAttack_Ready"], [0, "JumpAttack"]], "POWERBOMB": [[0, "PowerBomb_Ready"], [0, "PowerBomb_(Loop)"], [0, "PowerBomb_End"]], "DASH": [[0, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[0, "Swap_Enter"]], "Swap_Exit": [[0, "Swap_Exit_Ready"], [0, "Swap_Exit"]]}}, {"name": "NPC_1", "source_idx": 1, "mappings": {"IDLE": [[1, "Idle_(Loop)"]], "WALK": [[1, "Walk_(Loop)"]], "JUMP": [[1, "Jump(Loop)"]], "FALL": [[1, "Fall_Ready"], [1, "Fall_(Loop)"]], "ComboAttack_1": [[1, "ComboAttack_1_Ready"], [1, "ComboAttack_1"]], "ComboAttack_2": [[1, "ComboAttack_2"]], "ComboAttack_3": [[1, "ComboAttack_3_Ready"], [1, "ComboAttack_3"]], "ComboAttack_4": [[1, "ComboAttack_4_Ready"], [1, "ComboAttack_4"]], "JUMPATTACK": [[1, "JumpAttack_Ready"], [1, "JumpAttack"]], "POWERBOMB": [[1, "PowerBomb"], [1, "PowerBomb_(Loop)"], [1, "PowerBomb_End"]], "DASH": [[1, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[1, "Swap_Enter"]], "Swap_Exit": [[1, "Swap_Exit_Ready"], [1, "Swap_Exit"]]}}], "ai_count": 0, "platforms": [[262, 372, 200, 20], [500, 200, 200, 20], [-146, 248, 300, 20], [900, 300, 400, 20], [-1027, 207, 927, 51], [-164, 69, 254, 25]], "solid_boxes": [[-628, 254, 349, 275], [-739, -287, 614, 208]]}
-        set_data = {"physics": {"dash_speed": 12.0, "jump_power": -18.0, "powerbomb_speed": 35.0, "cam_v_offset": -120}, "combat": {"atk_forward_v": 15.0}, "vfx": {"shake_enabled": True, "vfx_enabled": True, "base_shake": 1.0}, "viewport": {"show_viewport": True, "target_w": 640, "target_h": 360}, "bg": {"bg_color": [17, 15, 18], "bg_alpha": 255, "bg_zoom": 2.0, "bg_parallax": 0.9862068965517241, "bg_off_x": 0, "bg_off_y": -130.0, "bg_path": "C:/Users/SOUTHPAW GAMES/Desktop/새 폴더/로비 컨셉94 (1).png"}, "ai": {"target_ai_count": 0}, "platforms": {"alpha": 5.275862068965517}}
+        set_data = {"physics": {"dash_speed": 12.0, "jump_power": -18.0, "powerbomb_speed": 35.0, "cam_v_offset": -120}, "combat": {"atk_forward_v": 15.0}, "vfx": {"shake_enabled": True, "vfx_enabled": True, "base_shake": 1.0}, "viewport": {"show_viewport": True, "target_w": 640, "target_h": 360}, "bg": {"bg_color": [17, 15, 18], "layers": [{"path": "C:/Users/SOUTHPAW GAMES/Desktop/새 폴더/로비 컨셉94 (1).png", "off_x": 0, "off_y": -130.0, "zoom": 2.0, "alpha": 255, "parallax": 0.9862068965517241}]}, "ai": {"target_ai_count": 0}, "platforms": {"alpha": 5.275862068965517}}
         
         # Apply settings
-        for cat in set_data.values():
+        for cat_name, cat in set_data.items():
             if isinstance(cat, dict):
-                for k, v in cat.items():
-                    if k == "alpha" and "platforms" in set_data: self.platform_alpha = v
-                    elif hasattr(self, k): setattr(self, k, v)
-        self.bg_path = set_data["bg"].get("bg_path", "")
-        if self.bg_path:
-            if not os.path.exists(self.bg_path): self.bg_path = os.path.basename(self.bg_path)
-            if os.path.exists(self.bg_path):
-                self.bg_img = pygame.image.load(self.bg_path).convert_alpha()
-                self.bg_needs_update = True
-                self.bg_last_mtime = os.path.getmtime(self.bg_path)
+                if cat_name == "bg":
+                    if "bg_color" in cat: self.bg_color = cat["bg_color"]
+                    if "layers" in cat:
+                        self.bg_layers = []
+                        for l_data in cat["layers"]:
+                            path = l_data.get("path", "")
+                            if path and not os.path.exists(path): path = os.path.basename(path)
+                            layer = {"path": path, "off_x": l_data.get("off_x", 0), "off_y": l_data.get("off_y", 0), "zoom": l_data.get("zoom", 2.0), "alpha": l_data.get("alpha", 255), "parallax": l_data.get("parallax", 1.0), "img": None, "cached_bg": None, "needs_update": True, "last_mtime": 0}
+                            if os.path.exists(path):
+                                layer["img"] = pygame.image.load(path).convert_alpha()
+                                layer["last_mtime"] = os.path.getmtime(path)
+                            self.bg_layers.append(layer)
+                else:
+                    for k, v in cat.items():
+                        if k == "alpha" and "platforms" in set_data: self.platform_alpha = v
+                        elif hasattr(self, k): setattr(self, k, v)
                 
         # Apply project
         self.sources = []; self.profiles = []; self.ai_list = []; self.temp_ai_list = []
@@ -292,7 +328,46 @@ class AsepritePlayer:
             if prof_data["name"] != "PLAYER": self.ai_list.append(AseAI(self, new_prof))
         
         self.platforms = [pygame.Rect(d[0], d[1], d[2], d[3]) for d in proj_data["platforms"]]
-        self.solid_boxes = [pygame.Rect(d[0], d[1], d[2], d[3]) for d in proj_data["solid_boxes"]]
+        self.solid_boxes = [pygame.Rect(d[0], d[1], d[2], d[3]) for d in proj_data.get("solid_boxes", [])]
+        self.x, self.y = self.spawn_x, self.spawn_y; self.vx, self.vy = 0, 0
+        self.cam_x, self.cam_y = self.x, self.y
+        self.save_settings(); self.save_project()
+
+    def load_example2(self):
+        proj_data = {"sources": ["C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Cailin_00_Public.aseprite", "C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Nisariel_00_Public_02.aseprite"], "profiles": [{"name": "PLAYER", "source_idx": 0, "mappings": {"IDLE": [[0, "Idle_(Loop)"]], "WALK": [[0, "Walk_(Loop)"]], "JUMP": [[0, "Jump_(Loop)"]], "FALL": [[0, "Fall_Ready"], [0, "Fall_(Loop)"]], "ComboAttack_1": [[0, "ComboAttack_1_Ready"], [0, "ComboAttack_1"]], "ComboAttack_2": [[0, "ComboAttack_2_Ready"], [0, "ComboAttack_2"]], "ComboAttack_3": [[0, "ComboAttack_3_Ready"], [0, "ComboAttack_3"]], "ComboAttack_4": [], "JUMPATTACK": [[0, "JumpAttack_Ready"], [0, "JumpAttack"]], "POWERBOMB": [[0, "PowerBomb_Ready"], [0, "PowerBomb_(Loop)"], [0, "PowerBomb_End"]], "DASH": [[0, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[0, "Swap_Enter"]], "Swap_Exit": [[0, "Swap_Exit_Ready"], [0, "Swap_Exit"]]}}, {"name": "NPC_1", "source_idx": 1, "mappings": {"IDLE": [[1, "Idle_(Loop)"]], "WALK": [[1, "Walk_(Loop)"]], "JUMP": [[1, "Jump(Loop)"]], "FALL": [[1, "Fall_Ready"], [1, "Fall_(Loop)"]], "ComboAttack_1": [[1, "ComboAttack_1_Ready"], [1, "ComboAttack_1"]], "ComboAttack_2": [[1, "ComboAttack_2"]], "ComboAttack_3": [[1, "ComboAttack_3_Ready"], [1, "ComboAttack_3"]], "ComboAttack_4": [[1, "ComboAttack_4_Ready"], [1, "ComboAttack_4"]], "JUMPATTACK": [[1, "JumpAttack_Ready"], [1, "JumpAttack"]], "POWERBOMB": [[1, "PowerBomb"], [1, "PowerBomb_(Loop)"], [1, "PowerBomb_End"]], "DASH": [[1, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[1, "Swap_Enter"]], "Swap_Exit": [[1, "Swap_Exit_Ready"], [1, "Swap_Exit"]]}}], "ai_count": 0, "platforms": [[262, 372, 200, 20], [500, 200, 200, 20], [-146, 248, 300, 20], [900, 300, 400, 20], [-1027, 207, 927, 51], [-164, 69, 254, 25]], "solid_boxes": [[-628, 254, 349, 275], [-739, -287, 614, 208]]}
+        set_data = {"physics": {"dash_speed": 12.0, "jump_power": -18.0, "powerbomb_speed": 35.0, "cam_v_offset": -100.0}, "combat": {"atk_forward_v": 15.0}, "vfx": {"shake_enabled": True, "vfx_enabled": True, "base_shake": 1.0}, "viewport": {"show_viewport": True, "target_w": 640, "target_h": 360}, "bg": {"bg_color": [15, 15, 18], "layers": [{"path": "C:/Users/SOUTHPAW GAMES/Downloads/00.png", "off_x": 0, "off_y": -13, "zoom": 2.0, "alpha": 255, "parallax": 0.0, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/01.png", "off_x": 0, "off_y": -27, "zoom": 2.0, "alpha": 255, "parallax": 0.05, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 2번_완성본.png", "off_x": 0, "off_y": -137, "zoom": 2.0, "alpha": 125, "parallax": 0.06, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 3번_완성본.png", "off_x": 0, "off_y": -220, "zoom": 2.0, "alpha": 255, "parallax": 0.5344827586206895, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 4번_완성본.png", "off_x": 0, "off_y": -234, "zoom": 2.0, "alpha": 255, "parallax": 0.703448275862069, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/레이어 3.png", "off_x": 0, "off_y": 137, "zoom": 2.0, "alpha": 255, "parallax": 1.0, "loop_x": False}]}, "ai": {"target_ai_count": 0}, "platforms": {"alpha": 150}}
+        
+        # Apply settings
+        for cat_name, cat in set_data.items():
+            if isinstance(cat, dict):
+                if cat_name == "bg":
+                    if "bg_color" in cat: self.bg_color = cat["bg_color"]
+                    if "layers" in cat:
+                        self.bg_layers = []
+                        for l_data in cat["layers"]:
+                            path = l_data.get("path", "")
+                            if path and not os.path.exists(path): path = os.path.basename(path)
+                            layer = {"path": path, "off_x": l_data.get("off_x", 0), "off_y": l_data.get("off_y", 0), "zoom": l_data.get("zoom", 2.0), "alpha": l_data.get("alpha", 255), "parallax": l_data.get("parallax", 1.0), "loop_x": l_data.get("loop_x", False), "img": None, "cached_bg": None, "needs_update": True, "last_mtime": 0}
+                            if os.path.exists(path):
+                                layer["img"] = pygame.image.load(path).convert_alpha()
+                                layer["last_mtime"] = os.path.getmtime(path)
+                            self.bg_layers.append(layer)
+                else:
+                    for k, v in cat.items():
+                        if k == "alpha" and "platforms" in set_data: self.platform_alpha = v
+                        elif hasattr(self, k): setattr(self, k, v)
+                
+        # Apply project
+        self.sources = []; self.profiles = []; self.ai_list = []; self.temp_ai_list = []
+        for src_p in proj_data.get("sources", []):
+            if not os.path.exists(src_p): src_p = os.path.basename(src_p)
+            if os.path.exists(src_p): self.add_source(src_p)
+        for prof_data in proj_data.get("profiles", []):
+            new_prof = AseProfile(prof_data["name"], prof_data["source_idx"]); new_prof.mappings = prof_data["mappings"]; self.profiles.append(new_prof)
+            if prof_data["name"] != "PLAYER": self.ai_list.append(AseAI(self, new_prof))
+        
+        self.platforms = [pygame.Rect(d[0], d[1], d[2], d[3]) for d in proj_data["platforms"]]
+        self.solid_boxes = [pygame.Rect(d[0], d[1], d[2], d[3]) for d in proj_data.get("solid_boxes", [])]
         self.x, self.y = self.spawn_x, self.spawn_y; self.vx, self.vy = 0, 0
         self.cam_x, self.cam_y = self.x, self.y
         self.save_settings(); self.save_project()
@@ -488,15 +563,16 @@ class AsepritePlayer:
             for src in self.sources:
                 if src.check_for_reload(): [self.auto_map_profile(p) for p in self.profiles]
             # Check BG Reload
-            if self.bg_path and os.path.exists(self.bg_path):
-                try:
-                    mt = os.path.getmtime(self.bg_path)
-                    if mt > self.bg_last_mtime:
-                        self.bg_img = pygame.image.load(self.bg_path).convert_alpha()
-                        self.bg_needs_update = True
-                        self.bg_last_mtime = mt
-                        log_debug("[BG] Auto-reloaded background image.")
-                except: pass
+            for bg in self.bg_layers:
+                if bg.get('path') and os.path.exists(bg['path']):
+                    try:
+                        mt = os.path.getmtime(bg['path'])
+                        if mt > bg.get('last_mtime', 0):
+                            bg['img'] = pygame.image.load(bg['path']).convert_alpha()
+                            bg['needs_update'] = True
+                            bg['last_mtime'] = mt
+                            log_debug(f"[BG] Auto-reloaded background image: {bg['path']}")
+                    except: pass
         if self.swap_timer > 0:
             self.swap_timer -= dt
             if self.swap_timer <= 0: self.x, self.y = self.spawn_x, self.spawn_y; self.visible = True; self.trigger_action("Swap_Enter")
@@ -620,9 +696,19 @@ class AsepritePlayer:
         if not hasattr(self, "solid_boxes"): self.solid_boxes = []
         cx, cy = play_w // 2, play_h // 2; off_x = random.uniform(-self.shake_intensity*self.base_shake, self.shake_intensity*self.base_shake) if self.shake_timer > 0 else 0; off_y = random.uniform(-self.shake_intensity*self.base_shake, self.shake_intensity*self.base_shake) if self.shake_timer > 0 else 0; cam_x, cam_y = self.cam_x + off_x, self.cam_y + off_y; gx, gy = cx - (cam_x % 100)*self.zoom, cy - (cam_y % 100)*self.zoom
         for i in range(-10, 20): pygame.draw.line(screen, self.grid_color, (int(gx+i*100*self.zoom), 0), (int(gx+i*100*self.zoom), play_h), 1); pygame.draw.line(screen, self.grid_color, (0, int(gy+i*100*self.zoom)), (play_w, int(gy+i*100*self.zoom)), 1)
-        if self.bg_img:
-            if self.bg_needs_update or self.cached_bg is None: self.update_bg_cache()
-            bx = cx + (self.spawn_x - cam_x) * self.bg_parallax * self.zoom + self.bg_off_x * self.zoom - self.cached_bg.get_width() // 2; by = cy + (self.spawn_y - cam_y) * self.bg_parallax * self.zoom + self.bg_off_y * self.zoom - self.cached_bg.get_height() // 2; screen.blit(self.cached_bg, (int(bx), int(by)))
+        self.update_bg_cache()
+        for bg in self.bg_layers:
+            if bg.get('cached_bg'):
+                bg_w = bg['cached_bg'].get_width()
+                bx = cx + (self.spawn_x - cam_x) * bg.get('parallax', 1.0) * self.zoom + bg.get('off_x', 0) * self.zoom - bg_w // 2
+                by = cy + (self.spawn_y - cam_y) * bg.get('parallax', 1.0) * self.zoom + bg.get('off_y', 0) * self.zoom - bg['cached_bg'].get_height() // 2
+                
+                if bg.get('loop_x') and bg_w > 0:
+                    start_x = (bx % bg_w) - bg_w
+                    for draw_x in range(int(start_x), int(play_w), int(bg_w)):
+                        screen.blit(bg['cached_bg'], (draw_x, int(by)))
+                else:
+                    screen.blit(bg['cached_bg'], (int(bx), int(by)))
         
         # Draw Platforms
         plat_surf = pygame.Surface((play_w, play_h), pygame.SRCALPHA)
@@ -730,14 +816,15 @@ def main():
         # --- TOP UI ROW 1 (Project & Files) ---
         new_proj = pygame.Rect(10, 5, 80, 28); pygame.draw.rect(screen, (220, 38, 38), new_proj, border_radius=5); screen.blit(font_b.render("NEW", True, (255,255,255)), (new_proj.x+20, 10))
         
-        example_btn = pygame.Rect(95, 5, 80, 28); pygame.draw.rect(screen, (34, 139, 34), example_btn, border_radius=5); screen.blit(font_b.render("EXAMPLE", True, (255,255,255)), (example_btn.x+10, 10))
+        example_btn = pygame.Rect(95, 5, 45, 28); pygame.draw.rect(screen, (34, 139, 34), example_btn, border_radius=5); screen.blit(font_b.render("EX 1", True, (255,255,255)), (example_btn.x+7, 10))
+        ex2_btn = pygame.Rect(145, 5, 45, 28); pygame.draw.rect(screen, (34, 139, 34), ex2_btn, border_radius=5); screen.blit(font_b.render("EX 2", True, (255,255,255)), (ex2_btn.x+7, 10))
         
-        load_prev = pygame.Rect(180, 5, 70, 28); has_prev = os.path.exists("ase_project.json")
+        load_prev = pygame.Rect(195, 5, 70, 28); has_prev = os.path.exists("ase_project.json")
         pygame.draw.rect(screen, (59, 130, 246) if has_prev else (60, 60, 70), load_prev, border_radius=5); screen.blit(font_b.render("LOAD", True, (255,255,255) if has_prev else (120, 120, 120)), (load_prev.x+15, 10))
         
-        add_src = pygame.Rect(255, 5, 70, 28); pygame.draw.rect(screen, (59, 130, 246), add_src, border_radius=5); screen.blit(font_b.render("+ SRC", True, (255,255,255)), (add_src.x+15, 10))
+        add_src = pygame.Rect(270, 5, 70, 28); pygame.draw.rect(screen, (59, 130, 246), add_src, border_radius=5); screen.blit(font_b.render("+ SRC", True, (255,255,255)), (add_src.x+15, 10))
         
-        add_npc = pygame.Rect(330, 5, 70, 28); pygame.draw.rect(screen, (22, 163, 74), add_npc, border_radius=5); screen.blit(font_b.render("+ NPC", True, (255,255,255)), (add_npc.x+15, 10))
+        add_npc = pygame.Rect(345, 5, 70, 28); pygame.draw.rect(screen, (22, 163, 74), add_npc, border_radius=5); screen.blit(font_b.render("+ NPC", True, (255,255,255)), (add_npc.x+15, 10))
 
         # --- TOP UI ROW 2 (Tools & Settings) ---
         edit_p_btn = pygame.Rect(10, 38, 100, 28); pygame.draw.rect(screen, (220, 38, 38) if player.edit_platforms else (60, 60, 70), edit_p_btn, border_radius=5); screen.blit(font_b.render("EDIT PLAT", True, (255,255,255)), (edit_p_btn.x+15, 43))
@@ -806,6 +893,8 @@ def main():
                                 if p: player = AsepritePlayer(p)
                             elif example_btn.collidepoint(m_pos) and player:
                                 player.load_example()
+                            elif ex2_btn.collidepoint(m_pos) and player:
+                                player.load_example2()
                             elif load_prev.collidepoint(m_pos) and has_prev: player.load_settings(); player.load_project()
                             elif add_src.collidepoint(m_pos) and player: 
                                 p = select_file([("Aseprite", "*.aseprite *.ase")])
@@ -903,7 +992,7 @@ def main():
                                             elif cat == "JUICE & VFX": cy += 130
                                             elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                             elif cat == "CAMERA": cy += 85
-                                            elif cat == "BG IMAGE": cy += 250
+                                            elif cat == "BG IMAGE": cy += 25 + max(1, ((len(player.bg_layers)-1)//5 + 1)) * 30 + 10 + (270 if player.active_bg_layer < len(player.bg_layers) else 0)
                                             elif cat == "BG COLOR": cy += 170
                                             elif cat == "CONTROLS": cy += len(player.key_map) * 30 + 10
                             else:
@@ -983,10 +1072,16 @@ def main():
                             if active_input_attr.startswith('bg_color_'):
                                 idx = int(active_input_attr.split('_')[-1])
                                 player.bg_color[idx] = max(0, min(255, int(val)))
+                            elif active_input_attr.startswith('bglayer_'):
+                                parts = active_input_attr.split('_', 2)
+                                l_idx = int(parts[1])
+                                l_attr = parts[2]
+                                player.bg_layers[l_idx][l_attr] = int(val) if "alpha" in l_attr or "off" in l_attr else float(val)
+                                player.bg_layers[l_idx]['needs_update'] = True
                             else:
                                 setattr(player, active_input_attr, val)
                             player.save_settings()
-                            if "bg_" in active_input_attr: player.bg_needs_update = True
+                            if "bg_" in active_input_attr or "bglayer_" in active_input_attr: player.bg_needs_update = True
                         except ValueError:
                             pass # Ignore invalid inputs
                         active_input_attr = None
@@ -1057,7 +1152,7 @@ def main():
                                 elif cat == "JUICE & VFX": calc_h += 130
                                 elif cat == "LAYERS" and player.sources: calc_h += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                 elif cat == "CAMERA": calc_h += 85
-                                elif cat == "BG IMAGE": calc_h += 250
+                                elif cat == "BG IMAGE": calc_h += 25 + max(1, ((len(player.bg_layers)-1)//5 + 1)) * 30 + 10 + (270 if player.active_bg_layer < len(player.bg_layers) else 0)
                                 elif cat == "BG COLOR": calc_h += 170
                                 elif cat == "CONTROLS": calc_h += len(player.key_map) * 30 + 10
                         settings_scroll = max(min(0, settings_scroll + delta), -max(0, calc_h - sh + 100))
@@ -1207,26 +1302,94 @@ def main():
                                 if not hasattr(player, "_btn_lock"): player.show_viewport = not val; player._btn_lock = 15; player.save_settings()
                             cy += 85
                         elif cat == "BG IMAGE":
-                            bg_btn = pygame.Rect(20, cy, 150, 30); pygame.draw.rect(set_surf, (100,100,110), bg_btn, border_radius=5); set_surf.blit(font_b.render("LOAD BG IMG", True, (255,255,255)), (bg_btn.x+25, bg_btn.y+5))
-                            if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+20, cy, 150, 30).collidepoint(m_pos):
-                                p = select_file([("Image", "*.png *.jpg *.bmp")]); 
-                                if p: player.bg_img = pygame.image.load(p).convert_alpha(); player.bg_path = p; player.bg_needs_update = True; player.save_settings()
-                            cy += 40
-                            for i, (l, mn, mx, at) in enumerate([("BG-X",-2000,2000,"bg_off_x"), ("BG-Y",-2000,2000,"bg_off_y"), ("Scale",0.1,10,"bg_zoom"), ("Alpha",0,255,"bg_alpha"), ("Parallax",0,1,"bg_parallax")]):
-                                y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(80, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (220,38,38), (int(80+n*(sidebar_w-160)), y+9), 8)
+                            # Layers header
+                            set_surf.blit(font_s.render("Layers:", True, (150,150,150)), (20, cy))
+                            add_lyr_btn = pygame.Rect(sidebar_w-45, cy-5, 25, 20); pygame.draw.rect(set_surf, (22, 163, 74), add_lyr_btn, border_radius=4); set_surf.blit(font_b.render("+", True, (255,255,255)), (add_lyr_btn.x+8, add_lyr_btn.y+3))
+                            if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+add_lyr_btn.x, add_lyr_btn.y, add_lyr_btn.w, add_lyr_btn.h).collidepoint(m_pos) and not hasattr(player, "_btn_lock"):
+                                player.bg_layers.append({"path": "", "off_x": 0, "off_y": 0, "zoom": 2.0, "alpha": 255, "parallax": 1.0, "img": None, "cached_bg": None, "needs_update": True, "last_mtime": 0})
+                                player.active_bg_layer = len(player.bg_layers) - 1
+                                player._btn_lock = 15; player.save_settings()
+                            cy += 25
+                            
+                            # Layer Tabs
+                            for l_i in range(len(player.bg_layers)):
+                                tab_rect = pygame.Rect(20 + (l_i%5)*45, cy + (l_i//5)*30, 40, 24)
+                                is_sel = player.active_bg_layer == l_i
+                                pygame.draw.rect(set_surf, (59, 130, 246) if is_sel else (60, 60, 70), tab_rect, border_radius=4)
+                                set_surf.blit(font_h.render(f"L{l_i}", True, (255,255,255)), (tab_rect.x+10, tab_rect.y+5))
+                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+tab_rect.x, tab_rect.y, tab_rect.w, tab_rect.h).collidepoint(m_pos): player.active_bg_layer = l_i
+                            
+                            cy += max(1, ((len(player.bg_layers)-1)//5 + 1)) * 30 + 10
+                            
+                            if player.active_bg_layer < len(player.bg_layers):
+                                l_idx = player.active_bg_layer
+                                l_data = player.bg_layers[l_idx]
                                 
-                                is_int_at = "off" in at or "alpha" in at
-                                txt_val = input_text + "|" if active_input_attr == at and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == at else (f"{int(v)}" if is_int_at else f"{v:.2f}"))
-                                pygame.draw.rect(set_surf, (30,30,35) if active_input_attr == at else (45,45,50), (sidebar_w-45, y-2, 40, 18), border_radius=3)
-                                set_surf.blit(font_s.render(txt_val, True, (255,255,255) if active_input_attr == at else (200,200,200)), (sidebar_w-42, y))
+                                # Move / Delete row
+                                bg_btn = pygame.Rect(20, cy, 80, 25); pygame.draw.rect(set_surf, (100,100,110), bg_btn, border_radius=5); set_surf.blit(font_h.render("LOAD IMG", True, (255,255,255)), (bg_btn.x+10, bg_btn.y+5))
+                                up_btn = pygame.Rect(110, cy, 30, 25); pygame.draw.rect(set_surf, (80,80,90), up_btn, border_radius=5); set_surf.blit(font_h.render("UP", True, (255,255,255)), (up_btn.x+8, up_btn.y+5))
+                                dn_btn = pygame.Rect(150, cy, 30, 25); pygame.draw.rect(set_surf, (80,80,90), dn_btn, border_radius=5); set_surf.blit(font_h.render("DN", True, (255,255,255)), (dn_btn.x+8, dn_btn.y+5))
+                                del_btn = pygame.Rect(190, cy, 40, 25); pygame.draw.rect(set_surf, (220,38,38), del_btn, border_radius=5); set_surf.blit(font_h.render("DEL", True, (255,255,255)), (del_btn.x+10, del_btn.y+5))
                                 
-                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0]:
-                                    if pygame.Rect(play_w+sidebar_w-45, y-2, 40, 18).collidepoint(m_pos):
-                                        if active_input_attr != at: active_input_attr = at; input_text = str(int(v)) if is_int_at else str(round(v, 2))
-                                    elif pygame.Rect(play_w+80, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos):
-                                        active_input_attr = None
-                                        setattr(player, at, mn+(m_pos[0]-(play_w+80))/(sidebar_w-160)*(mx-mn)); player.save_settings(); player.bg_needs_update = True
-                            cy += 210
+                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and not hasattr(player, "_btn_lock"):
+                                    if pygame.Rect(play_w+bg_btn.x, bg_btn.y, bg_btn.w, bg_btn.h).collidepoint(m_pos):
+                                        p = select_file([("Image", "*.png *.jpg *.bmp")])
+                                        if p: 
+                                            l_data['path'] = p; l_data['img'] = pygame.image.load(p).convert_alpha()
+                                            l_data['needs_update'] = True; l_data['last_mtime'] = os.path.getmtime(p)
+                                            player.save_settings()
+                                        player._btn_lock = 15
+                                    elif pygame.Rect(play_w+up_btn.x, up_btn.y, up_btn.w, up_btn.h).collidepoint(m_pos) and l_idx > 0:
+                                        player.bg_layers[l_idx], player.bg_layers[l_idx-1] = player.bg_layers[l_idx-1], player.bg_layers[l_idx]
+                                        player.active_bg_layer -= 1; player._btn_lock = 15; player.save_settings()
+                                    elif pygame.Rect(play_w+dn_btn.x, dn_btn.y, dn_btn.w, dn_btn.h).collidepoint(m_pos) and l_idx < len(player.bg_layers)-1:
+                                        player.bg_layers[l_idx], player.bg_layers[l_idx+1] = player.bg_layers[l_idx+1], player.bg_layers[l_idx]
+                                        player.active_bg_layer += 1; player._btn_lock = 15; player.save_settings()
+                                    elif pygame.Rect(play_w+del_btn.x, del_btn.y, del_btn.w, del_btn.h).collidepoint(m_pos):
+                                        player.bg_layers.pop(l_idx)
+                                        player.active_bg_layer = max(0, l_idx - 1)
+                                        player._btn_lock = 15; player.save_settings()
+                                
+                                cy += 40
+                                
+                                if l_idx < len(player.bg_layers): # Check if valid
+                                    for i, (l, mn, mx, at) in enumerate([("X Offset",-2000,2000,"off_x"), ("Y Offset",-2000,2000,"off_y"), ("Scale",0.1,10,"zoom"), ("Alpha",0,255,"alpha"), ("Parallax",-2.0,5.0,"parallax")]):
+                                        y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y))
+                                        sl = pygame.Rect(80, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl)
+                                        v = l_data.get(at, 0); n = max(0, min(1, (v-mn)/(mx-mn)))
+                                        pygame.draw.circle(set_surf, (220,38,38), (int(80+n*(sidebar_w-160)), y+9), 8)
+                                        
+                                        is_int_at = "off" in at or "alpha" in at
+                                        attr_name = f"bglayer_{l_idx}_{at}"
+                                        txt_val = input_text + "|" if active_input_attr == attr_name and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == attr_name else (f"{int(v)}" if is_int_at else f"{v:.2f}"))
+                                        pygame.draw.rect(set_surf, (30,30,35) if active_input_attr == attr_name else (45,45,50), (sidebar_w-45, y-2, 40, 18), border_radius=3)
+                                        set_surf.blit(font_s.render(txt_val, True, (255,255,255) if active_input_attr == attr_name else (200,200,200)), (sidebar_w-42, y))
+                                        
+                                        if m_pos[1] > 70 and pygame.mouse.get_pressed()[0]:
+                                            if pygame.Rect(play_w+sidebar_w-45, y-2, 40, 18).collidepoint(m_pos):
+                                                if active_input_attr != attr_name: active_input_attr = attr_name; input_text = str(int(v)) if is_int_at else str(round(v, 2))
+                                            elif pygame.Rect(play_w+80, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos):
+                                                active_input_attr = None
+                                                l_data[at] = mn+(m_pos[0]-(play_w+80))/(sidebar_w-160)*(mx-mn)
+                                                if is_int_at: l_data[at] = int(l_data[at])
+                                                l_data['needs_update'] = True
+                                                player.save_settings()
+                                    
+                                    # Loop X Toggle
+                                    ly = cy + 200
+                                    set_surf.blit(font_s.render("Loop X", True, (150,150,150)), (20, ly))
+                                    btn = pygame.Rect(sidebar_w-60, ly-5, 40, 20)
+                                    val = l_data.get('loop_x', False)
+                                    pygame.draw.rect(set_surf, (22, 163, 74) if val else (220, 38, 38), btn, border_radius=10)
+                                    pygame.draw.circle(set_surf, (255,255,255), (btn.x+30 if val else btn.x+10, btn.y+10), 8)
+                                    
+                                    if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+btn.x, ly-5, btn.w, btn.h).collidepoint(m_pos):
+                                        if not hasattr(player, "_btn_lock"):
+                                            l_data['loop_x'] = not val
+                                            l_data['needs_update'] = True
+                                            player._btn_lock = 15; player.save_settings()
+                                            
+                                    cy += 230
                         elif cat == "BG COLOR":
                             for i, c in enumerate(['R','G','B']):
                                 y = cy+i*35; set_surf.blit(font_s.render(c, True, (150,150,150)), (20, y)); sl = pygame.Rect(40, y+5, sidebar_w-120, 8); pygame.draw.rect(set_surf, (60,60,70), sl); pygame.draw.circle(set_surf, (220, 38, 38) if i==0 else (22, 163, 74) if i==1 else (59, 130, 246), (int(40+player.bg_color[i]/255*(sidebar_w-120)), y+9), 8)
