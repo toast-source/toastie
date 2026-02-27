@@ -1,9 +1,9 @@
 {
     "physics": {
-        "dash_speed": 11.10344827586207,
+        "dash_speed": 12.0,
         "jump_power": -18.0,
         "powerbomb_speed": 35.0,
-        "cam_v_offset": -120
+        "cam_v_offset": -100.0
     },
     "combat": {
         "atk_forward_v": 15.0
@@ -11,7 +11,7 @@
     "vfx": {
         "shake_enabled": true,
         "vfx_enabled": true,
-        "base_shake": 0.693103448275862
+        "base_shake": 1.0
     },
     "viewport": {
         "show_viewport": true,
@@ -24,12 +24,62 @@
             15,
             18
         ],
-        "bg_alpha": 255,
-        "bg_zoom": 1.0,
-        "bg_parallax": 0.1,
-        "bg_off_x": 0,
-        "bg_off_y": 0,
-        "bg_path": null
+        "layers": [
+            {
+                "path": "C:/Users/SOUTHPAW GAMES/Downloads/00.png",
+                "off_x": 0,
+                "off_y": -13,
+                "zoom": 2.0,
+                "alpha": 255,
+                "parallax": 0.0,
+                "loop_x": false
+            },
+            {
+                "path": "C:/Users/SOUTHPAW GAMES/Downloads/01.png",
+                "off_x": 0,
+                "off_y": -27,
+                "zoom": 2.0,
+                "alpha": 255,
+                "parallax": 0.05,
+                "loop_x": false
+            },
+            {
+                "path": "C:/Users/SOUTHPAW GAMES/Downloads/# 2\ubc88_\uc644\uc131\ubcf8.png",
+                "off_x": 0,
+                "off_y": -137,
+                "zoom": 2.0,
+                "alpha": 125,
+                "parallax": 0.06,
+                "loop_x": false
+            },
+            {
+                "path": "C:/Users/SOUTHPAW GAMES/Downloads/# 3\ubc88_\uc644\uc131\ubcf8.png",
+                "off_x": 0,
+                "off_y": -220,
+                "zoom": 2.0,
+                "alpha": 255,
+                "parallax": 0.5344827586206895,
+                "loop_x": true
+            },
+            {
+                "path": "C:/Users/SOUTHPAW GAMES/Downloads/# 4\ubc88_\uc644\uc131\ubcf8.png",
+                "off_x": 0,
+                "off_y": -234,
+                "zoom": 2.0,
+                "alpha": 255,
+                "parallax": 0.703448275862069,
+                "loop_x": true
+            },
+            {
+                "path": "C:/Users/SOUTHPAW GAMES/Downloads/\ub808\uc774\uc5b4 3.png",
+                "off_x": 0,
+                "off_y": 137,
+                "zoom": 2.0,
+                "alpha": 255,
+                "parallax": 1.0,
+                "loop_x": true
+            }
+        ]
     },
     "ai": {
         "target_ai_count": 0

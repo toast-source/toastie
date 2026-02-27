@@ -1,6 +1,7 @@
 {
     "sources": [
-        "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Cailin_00_Public.aseprite"
+        "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Cailin_00_Public.aseprite",
+        "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Nisariel_00_Public_02.aseprite"
     ],
     "profiles": [
         {
@@ -117,13 +118,133 @@
                     ]
                 ]
             }
+        },
+        {
+            "name": "NPC_1",
+            "source_idx": 1,
+            "mappings": {
+                "IDLE": [
+                    [
+                        1,
+                        "Idle_(Loop)"
+                    ]
+                ],
+                "WALK": [
+                    [
+                        1,
+                        "Walk_(Loop)"
+                    ]
+                ],
+                "JUMP": [
+                    [
+                        1,
+                        "Jump(Loop)"
+                    ]
+                ],
+                "FALL": [
+                    [
+                        1,
+                        "Fall_Ready"
+                    ],
+                    [
+                        1,
+                        "Fall_(Loop)"
+                    ]
+                ],
+                "ComboAttack_1": [
+                    [
+                        1,
+                        "ComboAttack_1_Ready"
+                    ],
+                    [
+                        1,
+                        "ComboAttack_1"
+                    ]
+                ],
+                "ComboAttack_2": [
+                    [
+                        1,
+                        "ComboAttack_2"
+                    ]
+                ],
+                "ComboAttack_3": [
+                    [
+                        1,
+                        "ComboAttack_3_Ready"
+                    ],
+                    [
+                        1,
+                        "ComboAttack_3"
+                    ]
+                ],
+                "ComboAttack_4": [
+                    [
+                        1,
+                        "ComboAttack_4_Ready"
+                    ],
+                    [
+                        1,
+                        "ComboAttack_4"
+                    ]
+                ],
+                "JUMPATTACK": [
+                    [
+                        1,
+                        "JumpAttack_Ready"
+                    ],
+                    [
+                        1,
+                        "JumpAttack"
+                    ]
+                ],
+                "POWERBOMB": [
+                    [
+                        1,
+                        "PowerBomb"
+                    ],
+                    [
+                        1,
+                        "PowerBomb_(Loop)"
+                    ],
+                    [
+                        1,
+                        "PowerBomb_End"
+                    ]
+                ],
+                "DASH": [
+                    [
+                        1,
+                        "Dash"
+                    ]
+                ],
+                "SKILL 1": [],
+                "SKILL 2": [],
+                "SKILL 3": [],
+                "HURT": [],
+                "Swap_Enter": [
+                    [
+                        1,
+                        "Swap_Enter"
+                    ]
+                ],
+                "Swap_Exit": [
+                    [
+                        1,
+                        "Swap_Exit_Ready"
+                    ],
+                    [
+                        1,
+                        "Swap_Exit"
+                    ]
+                ]
+            }
         }
     ],
     "ai_count": 0,
     "platforms": [
         [
-            200,
-            350,
+            262,
+            372,
             200,
             20
         ],
@@ -134,8 +255,8 @@
             20
         ],
         [
-            -200,
-            250,
+            -146,
+            248,
             300,
             20
         ],
@@ -144,7 +265,32 @@
             300,
             400,
             20
+        ],
+        [
+            -1027,
+            207,
+            927,
+            51
+        ],
+        [
+            -164,
+            69,
+            254,
+            25
         ]
     ],
-    "solid_boxes": []
+    "solid_boxes": [
+        [
+            -628,
+            254,
+            349,
+            275
+        ],
+        [
+            -739,
+            -287,
+            614,
+            208
+        ]
+    ]
 }
