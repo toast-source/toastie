@@ -335,7 +335,7 @@ class AsepritePlayer:
 
     def load_example2(self):
         proj_data = {"sources": ["C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Cailin_00_Public.aseprite", "C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Nisariel_00_Public_02.aseprite"], "profiles": [{"name": "PLAYER", "source_idx": 0, "mappings": {"IDLE": [[0, "Idle_(Loop)"]], "WALK": [[0, "Walk_(Loop)"]], "JUMP": [[0, "Jump_(Loop)"]], "FALL": [[0, "Fall_Ready"], [0, "Fall_(Loop)"]], "ComboAttack_1": [[0, "ComboAttack_1_Ready"], [0, "ComboAttack_1"]], "ComboAttack_2": [[0, "ComboAttack_2_Ready"], [0, "ComboAttack_2"]], "ComboAttack_3": [[0, "ComboAttack_3_Ready"], [0, "ComboAttack_3"]], "ComboAttack_4": [], "JUMPATTACK": [[0, "JumpAttack_Ready"], [0, "JumpAttack"]], "POWERBOMB": [[0, "PowerBomb_Ready"], [0, "PowerBomb_(Loop)"], [0, "PowerBomb_End"]], "DASH": [[0, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[0, "Swap_Enter"]], "Swap_Exit": [[0, "Swap_Exit_Ready"], [0, "Swap_Exit"]]}}, {"name": "NPC_1", "source_idx": 1, "mappings": {"IDLE": [[1, "Idle_(Loop)"]], "WALK": [[1, "Walk_(Loop)"]], "JUMP": [[1, "Jump(Loop)"]], "FALL": [[1, "Fall_Ready"], [1, "Fall_(Loop)"]], "ComboAttack_1": [[1, "ComboAttack_1_Ready"], [1, "ComboAttack_1"]], "ComboAttack_2": [[1, "ComboAttack_2"]], "ComboAttack_3": [[1, "ComboAttack_3_Ready"], [1, "ComboAttack_3"]], "ComboAttack_4": [[1, "ComboAttack_4_Ready"], [1, "ComboAttack_4"]], "JUMPATTACK": [[1, "JumpAttack_Ready"], [1, "JumpAttack"]], "POWERBOMB": [[1, "PowerBomb"], [1, "PowerBomb_(Loop)"], [1, "PowerBomb_End"]], "DASH": [[1, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[1, "Swap_Enter"]], "Swap_Exit": [[1, "Swap_Exit_Ready"], [1, "Swap_Exit"]]}}], "ai_count": 0, "platforms": [[262, 372, 200, 20], [500, 200, 200, 20], [-146, 248, 300, 20], [900, 300, 400, 20], [-1027, 207, 927, 51], [-164, 69, 254, 25]], "solid_boxes": [[-628, 254, 349, 275], [-739, -287, 614, 208]]}
-        set_data = {"physics": {"dash_speed": 12.0, "jump_power": -18.0, "powerbomb_speed": 35.0, "cam_v_offset": -100.0}, "combat": {"atk_forward_v": 15.0}, "vfx": {"shake_enabled": True, "vfx_enabled": True, "base_shake": 1.0}, "viewport": {"show_viewport": True, "target_w": 640, "target_h": 360}, "bg": {"bg_color": [15, 15, 18], "layers": [{"path": "C:/Users/SOUTHPAW GAMES/Downloads/00.png", "off_x": 0, "off_y": -13, "zoom": 2.0, "alpha": 255, "parallax": 0.0, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/01.png", "off_x": 0, "off_y": -27, "zoom": 2.0, "alpha": 255, "parallax": 0.05, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 2번_완성본.png", "off_x": 0, "off_y": -137, "zoom": 2.0, "alpha": 125, "parallax": 0.06, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 3번_완성본.png", "off_x": 0, "off_y": -220, "zoom": 2.0, "alpha": 255, "parallax": 0.5344827586206895, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 4번_완성본.png", "off_x": 0, "off_y": -234, "zoom": 2.0, "alpha": 255, "parallax": 0.703448275862069, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/레이어 3.png", "off_x": 0, "off_y": 137, "zoom": 2.0, "alpha": 255, "parallax": 1.0, "loop_x": False}]}, "ai": {"target_ai_count": 0}, "platforms": {"alpha": 150}}
+        set_data = {"physics": {"dash_speed": 12.0, "jump_power": -18.0, "powerbomb_speed": 35.0, "cam_v_offset": -100.0}, "combat": {"atk_forward_v": 15.0}, "vfx": {"shake_enabled": True, "vfx_enabled": True, "base_shake": 1.0}, "viewport": {"show_viewport": True, "target_w": 640, "target_h": 360}, "bg": {"bg_color": [15, 15, 18], "layers": [{"path": "C:/Users/SOUTHPAW GAMES/Downloads/00.png", "off_x": 0, "off_y": -13, "zoom": 2.0, "alpha": 255, "parallax": 0.0, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/01.png", "off_x": 0, "off_y": -27, "zoom": 2.0, "alpha": 255, "parallax": 0.05, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 2번_완성본.png", "off_x": 0, "off_y": -137, "zoom": 2.0, "alpha": 125, "parallax": 0.06, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 3번_완성본.png", "off_x": 0, "off_y": -220, "zoom": 2.0, "alpha": 255, "parallax": 0.5344827586206895, "loop_x": True}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 4번_완성본.png", "off_x": 0, "off_y": -234, "zoom": 2.0, "alpha": 255, "parallax": 0.703448275862069, "loop_x": True}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/레이어 3.png", "off_x": 0, "off_y": 137, "zoom": 2.0, "alpha": 255, "parallax": 1.0, "loop_x": True}]}, "ai": {"target_ai_count": 0}, "platforms": {"alpha": 150}}
         
         # Apply settings
         for cat_name, cat in set_data.items():
@@ -700,43 +700,59 @@ class AsepritePlayer:
         for bg in self.bg_layers:
             if bg.get('cached_bg'):
                 bg_w = bg['cached_bg'].get_width()
+                bg_h = bg['cached_bg'].get_height()
                 bx = cx + (self.spawn_x - cam_x) * bg.get('parallax', 1.0) * self.zoom + bg.get('off_x', 0) * self.zoom - bg_w // 2
-                by = cy + (self.spawn_y - cam_y) * bg.get('parallax', 1.0) * self.zoom + bg.get('off_y', 0) * self.zoom - bg['cached_bg'].get_height() // 2
+                by = cy + (self.spawn_y - cam_y) * bg.get('parallax', 1.0) * self.zoom + bg.get('off_y', 0) * self.zoom - bg_h // 2
                 
+                # Vertical Culling (Skip if entirely above or below the viewport)
+                if by > play_h or by + bg_h < 0:
+                    continue
+
                 if bg.get('loop_x') and bg_w > 0:
-                    start_x = (bx % bg_w) - bg_w
+                    start_x = bx % bg_w
+                    if start_x > 0: start_x -= bg_w
+                    
                     for draw_x in range(int(start_x), int(play_w), int(bg_w)):
+                        # Horizontal Culling per tile
+                        if draw_x > play_w or draw_x + bg_w < 0: continue
                         screen.blit(bg['cached_bg'], (draw_x, int(by)))
                 else:
+                    # Horizontal Culling for non-looping background
+                    if bx > play_w or bx + bg_w < 0: continue
                     screen.blit(bg['cached_bg'], (int(bx), int(by)))
         
         # Draw Platforms
-        plat_surf = pygame.Surface((play_w, play_h), pygame.SRCALPHA)
         for i, p in enumerate(self.platforms): 
             px, py, pw, ph = int(cx+(p.x-cam_x)*self.zoom), int(cy+(p.y-cam_y)*self.zoom), int(p.w*self.zoom), int(p.h*self.zoom)
+            if px + pw < 0 or px > play_w or py + ph < 0 or py > play_h: continue # Culling
+            
+            p_surf = pygame.Surface((pw, ph), pygame.SRCALPHA)
             col = (255, 255, 0, self.platform_alpha) if self.edit_platforms and self.selected_plat == i else (80, 80, 100, self.platform_alpha)
-            pygame.draw.rect(plat_surf, col, (px, py, pw, ph), border_radius=int(3*self.zoom))
+            pygame.draw.rect(p_surf, col, (0, 0, pw, ph), border_radius=int(3*self.zoom))
             if self.edit_platforms and self.selected_plat == i:
                 # Resize Handle (Bottom-Right)
-                pygame.draw.rect(plat_surf, (255, 0, 0), (px+pw-10, py+ph-10, 10, 10))
+                pygame.draw.rect(p_surf, (255, 0, 0), (pw-10, ph-10, 10, 10))
                 # Delete Button (Top-Right)
-                pygame.draw.rect(plat_surf, (220, 38, 38), (px+pw-15, py-15, 30, 30), border_radius=15)
-                pygame.draw.line(plat_surf, (255, 255, 255), (px+pw-7, py-7), (px+pw+7, py+7), 3)
-                pygame.draw.line(plat_surf, (255, 255, 255), (px+pw+7, py-7), (px+pw-7, py+7), 3)
+                pygame.draw.rect(p_surf, (220, 38, 38), (pw-15, 0, 30, 30), border_radius=15)
+                pygame.draw.line(p_surf, (255, 255, 255), (pw-7, 8), (pw+7, 22), 3)
+                pygame.draw.line(p_surf, (255, 255, 255), (pw+7, 8), (pw-7, 22), 3)
+            screen.blit(p_surf, (px, py))
 
         # Draw Solid Boxes
         for i, b in enumerate(self.solid_boxes):
             px, py, pw, ph = int(cx+(b.x-cam_x)*self.zoom), int(cy+(b.y-cam_y)*self.zoom), int(b.w*self.zoom), int(b.h*self.zoom)
-            col = (255, 100, 0, self.platform_alpha) if self.edit_platforms and self.selected_plat == i + 1000 else (50, 50, 60, self.platform_alpha) # Use offset ID for boxes
-            pygame.draw.rect(plat_surf, col, (px, py, pw, ph))
+            if px + pw < 0 or px > play_w or py + ph < 0 or py > play_h: continue # Culling
+            
+            b_surf = pygame.Surface((pw, ph), pygame.SRCALPHA)
+            col = (255, 100, 0, self.platform_alpha) if self.edit_platforms and self.selected_plat == i + 1000 else (50, 50, 60, self.platform_alpha)
+            pygame.draw.rect(b_surf, col, (0, 0, pw, ph))
             if self.edit_platforms and self.selected_plat == i + 1000:
-                pygame.draw.rect(plat_surf, (255, 0, 0), (px+pw-10, py+ph-10, 10, 10))
+                pygame.draw.rect(b_surf, (255, 0, 0), (pw-10, ph-10, 10, 10))
                 # Delete Button (Top-Right)
-                pygame.draw.rect(plat_surf, (220, 38, 38), (px+pw-15, py-15, 30, 30), border_radius=15)
-                pygame.draw.line(plat_surf, (255, 255, 255), (px+pw-7, py-7), (px+pw+7, py+7), 3)
-                pygame.draw.line(plat_surf, (255, 255, 255), (px+pw+7, py-7), (px+pw-7, py+7), 3)
-
-        screen.blit(plat_surf, (0,0))
+                pygame.draw.rect(b_surf, (220, 38, 38), (pw-15, 0, 30, 30), border_radius=15)
+                pygame.draw.line(b_surf, (255, 255, 255), (pw-7, 8), (pw+7, 22), 3)
+                pygame.draw.line(b_surf, (255, 255, 255), (pw+7, 8), (pw-7, 22), 3)
+            screen.blit(b_surf, (px, py))
         
         pygame.draw.line(screen, (100,100,100), (int(cx+(0-cam_x)*self.zoom), int(cy+(500-cam_y)*self.zoom)), (int(cx+(5000-cam_x)*self.zoom), int(cy+(500-cam_y)*self.zoom)), 2)
         if self.vfx_enabled:
@@ -809,8 +825,16 @@ def main():
     while True:
         raw_dt = clock.tick(60)
         dt = raw_dt * player.playback_speed if player else raw_dt
-        sw, sh = screen.get_size(); sidebar_w = 450; play_w = sw - sidebar_w; play_h = sh - 70; m_pos = pygame.mouse.get_pos(); screen.fill(player.bg_color)
+        sw, sh = screen.get_size(); sidebar_w = 450; play_w = sw - sidebar_w; play_h = sh - 70; m_pos = pygame.mouse.get_pos()
+        
+        # [OPTIMIZATION] Restrict drawing strictly to the visible game area to prevent massive overdraw under UI panels
+        screen.set_clip(pygame.Rect(0, 70, play_w, play_h))
+        screen.fill(player.bg_color)
+        
         if player: player.update(pygame.key.get_pressed(), 500, dt); player.draw(screen, play_w, play_h)
+        
+        # Reset clip for UI
+        screen.set_clip(None)
         pygame.draw.rect(screen, (25, 25, 30), (play_w, 0, sidebar_w, sh)); pygame.draw.rect(screen, (35, 35, 40), (0, 0, play_w, 70))
         
         # --- TOP UI ROW 1 (Project & Files) ---
@@ -1443,6 +1467,17 @@ def main():
             pygame.draw.rect(screen, (30, 30, 35), (0, sh-40, play_w, 40)); ctrl = [("Z", "Atk"), ("X", "Dash"), ("C/B/N", "Skill"), ("T", "Swap"), ("P", "Pause"), ("O", "Step"), ("[ ]", f"Spd:{player.playback_speed:.1f}"), ("F5", "Refresh"), ("H", "Hitbox"), ("R-Drag", "Cam"), ("F", "Reset")]
             tx = 20
             for k, d in ctrl: pygame.draw.rect(screen, (45,45,50), (tx-5, sh-32, font_h.size(k)[0]+font_h.size(d)[0]+25, 24), border_radius=4); screen.blit(font_h.render(k, True, (59,130,246)), (tx, sh-27)); screen.blit(font_h.render(f": {d}", True, (255,255,255)), (tx+font_h.size(k)[0], sh-27)); tx += font_h.size(k)[0]+font_h.size(d)[0]+35
+        # Render FPS and Zoom
+        fps = int(clock.get_fps())
+        fps_color = (22, 163, 74) if fps >= 55 else ((220, 160, 38) if fps >= 30 else (220, 38, 38))
+        screen.blit(font_b.render(f"FPS: {fps} | Zoom: {player.zoom:.1f}x", True, fps_color), (10, 75))
+
+        if fps > 0 and fps < 55:
+            now = pygame.time.get_ticks()
+            if not hasattr(player, 'last_fps_log') or now - player.last_fps_log > 2000:
+                log_debug(f"[PERF] Low FPS: {fps} | Res: {play_w}x{play_h} | Zoom: {player.zoom:.1f}x | BGs: {len(player.bg_layers)} | NPCs: {len(player.ai_list)} | AIs: {len(player.afterimages)}")
+                player.last_fps_log = now
+
         pygame.display.flip()
 
 if __name__ == "__main__": main()
