@@ -687,32 +687,30 @@ class AsepritePlayer:
                                             full_frame_img = prop_src.get_frame(p_frame, 1.0, True) # Unscaled original frame
                                             if full_frame_img:
                                                 for s_name, s_keys in prop_src.slices.items():
-                                                    # Find all slices containing 'slice' in their name
-                                                    if "slice" in s_name.lower():
-                                                        for key in s_keys:
-                                                            if key['frame'] <= p_frame:
-                                                                b = key['bounds']
-                                                                try:
-                                                                    # Crop the exact slice area from the Aseprite canvas
-                                                                    cropped = pygame.Surface((b['w'], b['h']), pygame.SRCALPHA)
-                                                                    f_info = prop_src.frames[p_frame]
-                                                                    crop_x = b['x'] - prop_src.orig_w // 2 - f_info['ox']
-                                                                    crop_y = b['y'] - prop_src.orig_h // 2 - f_info['oy']
-                                                                    cropped.blit(full_frame_img, (-crop_x, -crop_y))
-                                                                    
-                                                                    # Calculate precise spawn location of the debris in the game world 
-                                                                    # based on the slice's visual offset from the prop's center pivot
-                                                                    if ai.facing_right:
-                                                                        px = ai.x + (b['x'] - prop_src.orig_w // 2) + b['w'] / 2
-                                                                    else:
-                                                                        px = ai.x - (b['x'] - prop_src.orig_w // 2 + b['w']) + b['w'] / 2
-                                                                    py = ai.y + (b['y'] - prop_src.orig_h // 2) + b['h'] / 2
-                                                                    
-                                                                    self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), 10, 20000, image=cropped))
-                                                                    debris_created = True
-                                                                except Exception as e:
-                                                                    log_debug(f"Failed to crop prop slice: {e}")
-                                                                break # Only use the active key for this slice
+                                                    for key in s_keys:
+                                                        if key['frame'] <= p_frame:
+                                                            b = key['bounds']
+                                                            try:
+                                                                # Crop the exact slice area from the Aseprite canvas
+                                                                cropped = pygame.Surface((b['w'], b['h']), pygame.SRCALPHA)
+                                                                f_info = prop_src.frames[p_frame]
+                                                                crop_x = b['x'] - prop_src.orig_w // 2 - f_info['ox']
+                                                                crop_y = b['y'] - prop_src.orig_h // 2 - f_info['oy']
+                                                                cropped.blit(full_frame_img, (-crop_x, -crop_y))
+                                                                
+                                                                # Calculate precise spawn location of the debris in the game world 
+                                                                # based on the slice's visual offset from the prop's center pivot
+                                                                if ai.facing_right:
+                                                                    px = ai.x + (b['x'] - prop_src.orig_w // 2) + b['w'] / 2
+                                                                else:
+                                                                    px = ai.x - (b['x'] - prop_src.orig_w // 2 + b['w']) + b['w'] / 2
+                                                                py = ai.y + (b['y'] - prop_src.orig_h // 2) + b['h'] / 2
+                                                                
+                                                                self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), 10, 20000, image=cropped))
+                                                                debris_created = True
+                                                            except Exception as e:
+                                                                log_debug(f"Failed to crop prop slice: {e}")
+                                                            break # Only use the active key for this slice
                                     
                                     # Fallback: Auto-slice the current frame into a 3x3 grid if no Parts tag exists
                                     if not debris_created and ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
@@ -1386,7 +1384,8 @@ def main():
                                         if cat == "PROPS":
                                             for i, s in enumerate([s for s in player.sources if getattr(s, 'is_prop_source', False)]):
                                                 ly = cy
-                                                spawn_btn = pygame.Rect(sidebar_w-100, ly, 40, 24)
+                                                spawn_btn = pygame.Rect(sidebar_w-110, ly, 50, 24)
+                                                export_btn = pygame.Rect(sidebar_w-55, ly, 45, 24)
                                                 
                                                 if not hasattr(player, "_btn_lock"):
                                                     # Spawn Button (Left Click)
@@ -1396,6 +1395,33 @@ def main():
                                                         player.profiles.append(new_prof)
                                                         player.auto_map_profile(new_prof)
                                                         player.prop_list.append(AseAI(player, new_prof, is_prop=True, hp=3))
+                                                        player._btn_lock = 15
+                                                    # Export Button (Left Click)
+                                                    elif pygame.Rect(play_w+export_btn.x, export_btn.y, export_btn.w, export_btn.h).collidepoint(m_pos):
+                                                        def _do_export(source=s):
+                                                            folder = filedialog.askdirectory()
+                                                            if folder:
+                                                                parts_tag = next((t for t in source.tags.keys() if "parts" in t.lower()), None)
+                                                                if parts_tag:
+                                                                    p_frame = source.tags[parts_tag][0]
+                                                                    full_frame_img = source.get_frame(p_frame, 1.0, True)
+                                                                    if full_frame_img:
+                                                                        for s_name, s_keys in source.slices.items():
+                                                                            for key in s_keys:
+                                                                                if key['frame'] <= p_frame:
+                                                                                    b = key['bounds']
+                                                                                    try:
+                                                                                        cropped = pygame.Surface((b['w'], b['h']), pygame.SRCALPHA)
+                                                                                        f_info = source.frames[p_frame]
+                                                                                        crop_x = b['x'] - source.orig_w // 2 - f_info['ox']
+                                                                                        crop_y = b['y'] - source.orig_h // 2 - f_info['oy']
+                                                                                        cropped.blit(full_frame_img, (-crop_x, -crop_y))
+                                                                                        safe_name = "".join([c for c in s_name if c.isalpha() or c.isdigit() or c in (' ', '-', '_')]).rstrip()
+                                                                                        pygame.image.save(cropped, os.path.join(folder, f"{safe_name}.png"))
+                                                                                    except Exception as e:
+                                                                                        log_debug(f"Export slice failed: {e}")
+                                                                                    break
+                                                        player.popup = {'msg': "Save slices as PNG?", 'cb': _do_export}
                                                         player._btn_lock = 15
                                                 
                                                 cy += 35
@@ -1647,9 +1673,12 @@ def main():
                                 ly = cy
                                 pygame.draw.rect(set_surf, (60,60,70), (20, ly-2, sidebar_w-40, 28), border_radius=4)
                                 set_surf.blit(font_s.render(s.name[:30], True, (255,255,255)), (30, ly+4))
-                                spawn_btn = pygame.Rect(sidebar_w-100, ly, 40, 24)
+                                spawn_btn = pygame.Rect(sidebar_w-110, ly, 50, 24)
                                 pygame.draw.rect(set_surf, (34, 139, 34), spawn_btn, border_radius=4)
-                                set_surf.blit(font_h.render("SPAWN", True, (255,255,255)), (spawn_btn.x+2, spawn_btn.y+5))
+                                set_surf.blit(font_h.render("SPAWN", True, (255,255,255)), (spawn_btn.x+5, spawn_btn.y+5))
+                                export_btn = pygame.Rect(sidebar_w-55, ly, 45, 24)
+                                pygame.draw.rect(set_surf, (59, 130, 246), export_btn, border_radius=4)
+                                set_surf.blit(font_h.render("SAVE", True, (255,255,255)), (export_btn.x+7, export_btn.y+5))
                                 cy += 35
                             cy += 10
                         elif cat == "PHYSICS":
