@@ -714,7 +714,37 @@ class AsepritePlayer:
                                                                     log_debug(f"Failed to crop prop slice: {e}")
                                                                 break # Only use the active key for this slice
                                     
-                                    # Fallback: If no Parts tag or slices exist, spawn simple colored squares
+                                    # Fallback: Auto-slice the current frame into a 3x3 grid if no Parts tag exists
+                                    if not debris_created and ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
+                                        prop_src = self.sources[ai.profile.source_idx]
+                                        full_frame_img = prop_src.get_frame(ai.frame_idx, 1.0, ai.facing_right)
+                                        if full_frame_img:
+                                            w, h = full_frame_img.get_width(), full_frame_img.get_height()
+                                            cols, rows = 3, 3
+                                            cw, ch = w // cols, h // rows
+                                            if cw > 0 and ch > 0:
+                                                f_info = prop_src.frames[ai.frame_idx]
+                                                start_x = ai.x + f_info['ox'] if ai.facing_right else ai.x - f_info['ox'] - w
+                                                start_y = ai.y + f_info['oy']
+                                                
+                                                for row in range(rows):
+                                                    for col in range(cols):
+                                                        try:
+                                                            cropped = pygame.Surface((cw, ch), pygame.SRCALPHA)
+                                                            cropped.blit(full_frame_img, (-col * cw, -row * ch))
+                                                            
+                                                            # Skip completely empty/transparent chunks
+                                                            if not cropped.get_bounding_rect().width: continue
+                                                            
+                                                            px = start_x + col * cw + cw//2
+                                                            py = start_y + row * ch + ch//2
+                                                            
+                                                            self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), max(cw, ch), 20000, image=cropped))
+                                                            debris_created = True
+                                                        except Exception as e:
+                                                            log_debug(f"Auto-slice failed: {e}")
+                                    
+                                    # Ultimate Fallback: Just in case the image was too small to slice
                                     if not debris_created:
                                         for _ in range(15):
                                             self.particles.append(Particle(ai.x, ai.y - 20, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (139, 69, 19), random.uniform(4, 8), random.randint(500, 1000)))
