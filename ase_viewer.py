@@ -123,7 +123,7 @@ class AseSource:
 class AseProfile:
     def __init__(self, name, source_idx):
         self.name = name; self.source_idx = source_idx
-        self.mappings = { "IDLE": [], "WALK": [], "JUMP": [], "FALL": [], "ComboAttack_1": [], "ComboAttack_2": [], "ComboAttack_3": [], "ComboAttack_4": [], "JUMPATTACK": [], "POWERBOMB": [], "DASH": [], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [], "Swap_Exit": [] }
+        self.mappings = { "IDLE": [], "WALK": [], "JUMP": [], "FALL": [], "ComboAttack_1": [], "ComboAttack_2": [], "ComboAttack_3": [], "ComboAttack_4": [], "JUMPATTACK": [], "POWERBOMB": [], "DASH": [], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [], "Swap_Exit": [], "Break1": [], "Break2": [] }
 
 class Particle:
     def __init__(self, x, y, vx, vy, color, size, lifetime, image=None):
@@ -159,7 +159,13 @@ class AseAI:
         self.spawn_y = master.y - 100
         self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = True; self.facing_right = random.choice([True, False]); self.frame_idx = 0; self.anim_timer = 0; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.ai_timer = random.randint(30, 90); self.decision = "IDLE"; self.swap_timer = 0; self.visible = True; self.active_action_slot = None
         self.is_temp = is_temp; self.attack_buffer = 0; self.combo_step = 0
-        self.is_prop = is_prop; self.hp = hp; self.hit_cooldown = 0; self.is_dead = False
+        self.is_prop = is_prop; self.hit_cooldown = 0; self.is_dead = False
+        if is_prop:
+            self.prop_state = 0 # 0: IDLE, 1: Break1, 2: Break2
+            self.stage_hp = random.randint(1, 3)
+            self.hp = 999 # Use stage_hp instead
+        else:
+            self.hp = hp
     def update(self, ground_y, dt):
         if self.hit_cooldown > 0: self.hit_cooldown -= dt
         if self.swap_timer > 0:
@@ -199,8 +205,15 @@ class AseAI:
                 if not self.active_tag_info: self.visible = False; return
                 target_info = self.active_tag_info
             else:
-                state = "WALK" if self.grounded and abs(self.vx) > 0.5 else ("IDLE" if self.grounded else ("JUMP" if self.vy < 0 else "FALL"))
-                m = self.profile.mappings.get(state, []) if self.profile else []; target_info = m[0] if m else None
+                if self.is_prop:
+                    state = "IDLE" if getattr(self, 'prop_state', 0) == 0 else (f"Break{getattr(self, 'prop_state', 0)}")
+                else:
+                    state = "WALK" if self.grounded and abs(self.vx) > 0.5 else ("IDLE" if self.grounded else ("JUMP" if self.vy < 0 else "FALL"))
+                
+                m = self.profile.mappings.get(state, []) if self.profile else []
+                # Fallback to IDLE if Break1/Break2 mappings aren't found
+                if not m and self.is_prop and state != "IDLE": m = self.profile.mappings.get("IDLE", [])
+                target_info = m[0] if m else None
         else: target_info = self.active_tag_info
         if target_info and target_info[0] >= 0 and target_info[0] < len(self.master.sources):
             src = self.master.sources[target_info[0]]; tr = src.tags.get(target_info[1], (0,0))
@@ -410,6 +423,34 @@ class AsepritePlayer:
             new_source.is_prop_source = is_prop_source
             self.sources.append(new_source); self.cur_source_idx = new_source.id; return new_source.id
         except: return 0
+
+    def remove_source_by_index(self, i):
+        if i < 0 or i >= len(self.sources): return
+        # Adjust sources
+        self.sources.pop(i)
+        for idx, s in enumerate(self.sources):
+            s.id = idx # Update internal IDs to match new list indices
+            
+        if self.cur_source_idx > i: self.cur_source_idx -= 1
+        elif self.cur_source_idx >= len(self.sources): self.cur_source_idx = max(0, len(self.sources)-1)
+        
+        # Shift profile indices
+        for prof in self.profiles:
+            if prof.source_idx > i: prof.source_idx -= 1
+            for slot, mappings in prof.mappings.items():
+                prof.mappings[slot] = [m for m in mappings if m[0] != i]
+                for mapping in prof.mappings[slot]:
+                    if mapping[0] > i: mapping[0] -= 1
+                    
+        # Shift active action indices for all entities
+        for ent in [self] + self.ai_list + getattr(self, 'prop_list', []):
+            if ent.active_tag_info and ent.active_tag_info[0] == i:
+                ent.active_tag_info = None; ent.active_action_slot = None
+            elif ent.active_tag_info and ent.active_tag_info[0] > i: ent.active_tag_info[0] -= 1
+            ent.action_queue = [act for act in ent.action_queue if act[0] != i]
+            for act in ent.action_queue:
+                if act[0] > i: act[0] -= 1
+
     def add_profile(self, name, source_idx, is_npc=False):
         new_profile = AseProfile(name, source_idx); self.profiles.append(new_profile); self.auto_map_profile(new_profile)
         if is_npc: self.ai_list.append(AseAI(self, new_profile))
@@ -620,43 +661,72 @@ class AsepritePlayer:
                         for _ in range(8):
                             self.particles.append(Particle(ai.x, ai.y - 30, random.uniform(-10, 10)*self.debris_force, random.uniform(-15, -5)*self.debris_force, (200, 200, 200) if getattr(ai, 'is_prop', False) else (220, 38, 38), random.uniform(2, 5), random.randint(300, 600)))
                         
-                        if ai.hp <= 0:
-                            ai.is_dead = True
-                            if getattr(ai, 'is_prop', False):
-                                # Generate Destruction Debris
-                                debris_created = False
-                                if ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
-                                    prop_src = self.sources[ai.profile.source_idx]
-                                    parts_tag = next((t for t in prop_src.tags.keys() if "parts" in t.lower()), None)
-                                    if parts_tag:
-                                        p_frame = prop_src.tags[parts_tag][0]
-                                        full_frame_img = prop_src.get_frame(p_frame, 1.0, True) # Unscaled original frame
-                                        if full_frame_img:
-                                            for s_name, s_keys in prop_src.slices.items():
-                                                if "slice" in s_name.lower():
-                                                    for key in s_keys:
-                                                        if key['frame'] <= p_frame:
-                                                            b = key['bounds']
-                                                            try:
-                                                                # Crop the slice area
-                                                                cropped = pygame.Surface((b['w'], b['h']), pygame.SRCALPHA)
-                                                                # Offset by frame's ox/oy to get the local coordinate in the full frame image
-                                                                f_info = prop_src.frames[p_frame]
-                                                                crop_x = b['x'] - prop_src.orig_w // 2 - f_info['ox']
-                                                                crop_y = b['y'] - prop_src.orig_h // 2 - f_info['oy']
-                                                                cropped.blit(full_frame_img, (-crop_x, -crop_y))
-                                                                self.particles.append(Particle(ai.x + random.uniform(-10, 10), ai.y - 20 + random.uniform(-10, 10), random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), 10, 20000, image=cropped))
-                                                                debris_created = True
-                                                            except Exception as e:
-                                                                log_debug(f"Failed to crop prop slice: {e}")
-                                                            break # Only use the active key for this slice
+                        if getattr(ai, 'is_prop', False):
+                            ai.stage_hp -= 1
+                            if ai.stage_hp <= 0:
+                                ai.prop_state += 1 # Advance to next break state
                                 
-                                if not debris_created:
-                                    for _ in range(15):
-                                        self.particles.append(Particle(ai.x, ai.y - 20, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (139, 69, 19), random.uniform(4, 8), random.randint(500, 1000)))
+                                # Check if the next Break state actually exists in the Aseprite file.
+                                # If Break1 or Break2 doesn't exist, immediately skip to destruction (state 3).
+                                if ai.prop_state < 3:
+                                    next_state_name = f"Break{ai.prop_state}"
+                                    if not ai.profile.mappings.get(next_state_name, []):
+                                        ai.prop_state = 3 # Fast-forward to total destruction
                                 
-                                if ai in getattr(self, 'prop_list', []): self.prop_list.remove(ai)
-                            else:
+                                if ai.prop_state >= 3:
+                                    ai.is_dead = True
+                                    # --- Prop Destruction Logic ---
+                                    # Generate precise debris from the "Parts" tag and its internal Slices
+                                    debris_created = False
+                                    if ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
+                                        prop_src = self.sources[ai.profile.source_idx]
+                                        # Look for a tag named 'Parts' (case-insensitive)
+                                        parts_tag = next((t for t in prop_src.tags.keys() if "parts" in t.lower()), None)
+                                        if parts_tag:
+                                            p_frame = prop_src.tags[parts_tag][0]
+                                            full_frame_img = prop_src.get_frame(p_frame, 1.0, True) # Unscaled original frame
+                                            if full_frame_img:
+                                                for s_name, s_keys in prop_src.slices.items():
+                                                    # Find all slices containing 'slice' in their name
+                                                    if "slice" in s_name.lower():
+                                                        for key in s_keys:
+                                                            if key['frame'] <= p_frame:
+                                                                b = key['bounds']
+                                                                try:
+                                                                    # Crop the exact slice area from the Aseprite canvas
+                                                                    cropped = pygame.Surface((b['w'], b['h']), pygame.SRCALPHA)
+                                                                    f_info = prop_src.frames[p_frame]
+                                                                    crop_x = b['x'] - prop_src.orig_w // 2 - f_info['ox']
+                                                                    crop_y = b['y'] - prop_src.orig_h // 2 - f_info['oy']
+                                                                    cropped.blit(full_frame_img, (-crop_x, -crop_y))
+                                                                    
+                                                                    # Calculate precise spawn location of the debris in the game world 
+                                                                    # based on the slice's visual offset from the prop's center pivot
+                                                                    if ai.facing_right:
+                                                                        px = ai.x + (b['x'] - prop_src.orig_w // 2) + b['w'] / 2
+                                                                    else:
+                                                                        px = ai.x - (b['x'] - prop_src.orig_w // 2 + b['w']) + b['w'] / 2
+                                                                    py = ai.y + (b['y'] - prop_src.orig_h // 2) + b['h'] / 2
+                                                                    
+                                                                    self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), 10, 20000, image=cropped))
+                                                                    debris_created = True
+                                                                except Exception as e:
+                                                                    log_debug(f"Failed to crop prop slice: {e}")
+                                                                break # Only use the active key for this slice
+                                    
+                                    # Fallback: If no Parts tag or slices exist, spawn simple colored squares
+                                    if not debris_created:
+                                        for _ in range(15):
+                                            self.particles.append(Particle(ai.x, ai.y - 20, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (139, 69, 19), random.uniform(4, 8), random.randint(500, 1000)))
+                                    
+                                    if ai in getattr(self, 'prop_list', []): self.prop_list.remove(ai)
+                                else:
+                                    # Reset HP for the next stage (Break1 or Break2)
+                                    ai.stage_hp = random.randint(1, 3)
+                        else:
+                            ai.hp -= 1
+                            if ai.hp <= 0:
+                                ai.is_dead = True
                                 ai.trigger_action("HURT")
                         break # Only hit once per attack frame
 
@@ -678,6 +748,10 @@ class AsepritePlayer:
                     break
 
     def update(self, keys, ground_y, dt):
+        if hasattr(self, "_btn_lock"):
+            self._btn_lock -= 1
+            if self._btn_lock <= 0: delattr(self, "_btn_lock")
+            
         self.check_hits()
         
         # Update particles
@@ -1179,14 +1253,28 @@ def main():
                             
                             # Tabs
                             elif player:
-                                for i in range(len(player.profiles)):
-                                    if pygame.Rect(400+i*95, 5, 90, 28).collidepoint(m_pos): 
+                                tab_offset = 0
+                                for i, p in enumerate(player.profiles):
+                                    if getattr(p, 'is_prop_profile', False): continue
+                                    if pygame.Rect(560+tab_offset*95, 5, 90, 28).collidepoint(m_pos): 
+                                        log_debug(f"[UI] Clicked Profile Tab: {p.name} (idx: {i})")
                                         if player.cur_profile_idx != i:
-                                            player.popup = {'msg': "Switch Profile?", 'cb': lambda i=i: setattr(player, 'cur_profile_idx', i)}
-                                for i in range(len(player.sources)):
-                                    if pygame.Rect(400+i*110, 38, 105, 28).collidepoint(m_pos): 
+                                            def _switch_profile_active(idx=i):
+                                                log_debug(f"[UI] Switched active profile to: {idx}")
+                                                setattr(player, 'cur_profile_idx', idx)
+                                            player.popup = {'msg': f"Switch to {p.name}?", 'cb': _switch_profile_active}
+                                        else:
+                                            log_debug(f"[UI] Profile {i} is already active.")
+                                    tab_offset += 1
+                                    
+                                tab_offset_s = 0
+                                for i, s in enumerate(player.sources):
+                                    if getattr(s, 'is_prop_source', False): continue
+                                    if pygame.Rect(400+tab_offset_s*110, 38, 105, 28).collidepoint(m_pos): 
+                                        log_debug(f"[UI] Clicked Source Tab: {s.name} (idx: {i})")
                                         if player.cur_source_idx != i:
                                             player.cur_source_idx = i # Always select the source to view tags
+                                            log_debug(f"[UI] Changed active source view to: {i}")
                                             if player.profiles:
                                                 p = player.profiles[player.cur_profile_idx]
                                                 if p.source_idx != i:
@@ -1194,7 +1282,11 @@ def main():
                                                         p = player.profiles[player.cur_profile_idx]
                                                         p.source_idx = idx
                                                         player.auto_map_profile(p)
+                                                        log_debug(f"[UI] Mapped profile {p.name} to source {idx}")
                                                     player.popup = {'msg': "Map profile to this source?", 'cb': _switch_prof}
+                                                else:
+                                                    log_debug("[UI] Profile is already mapped to this source.")
+                                    tab_offset_s += 1
 
                         elif player.edit_platforms and m_pos[0] < play_w and m_pos[1] > 70:
                             cx, cy = play_w // 2, play_h // 2
@@ -1255,49 +1347,37 @@ def main():
 
                         elif play_w < m_pos[0] < sw:
                             if show_settings:
-                                if m_pos[1] > 70: # Only process clicks below the top bar
-                                    cy = 60 + settings_scroll
-                                    for cat in folds.keys():
-                                        hr = pygame.Rect(play_w+10, cy, sidebar_w-20, 30)
-                                        if hr.collidepoint(m_pos): folds[cat] = not folds[cat]
-                                        cy += 35
-                                        if folds[cat]:
-                                            if cat == "PROPS":
-                                                for i, s in enumerate([s for s in player.sources if getattr(s, 'is_prop_source', False)]):
-                                                    ly = cy
-                                                    pygame.draw.rect(set_surf, (60,60,70), (20, ly-2, sidebar_w-40, 28), border_radius=4)
-                                                    set_surf.blit(font_s.render(s.name[:30], True, (255,255,255)), (30, ly+4))
-                                                    
-                                                    # Spawn Button
-                                                    spawn_btn = pygame.Rect(sidebar_w-100, ly, 40, 24)
-                                                    pygame.draw.rect(set_surf, (34, 139, 34), spawn_btn, border_radius=4)
-                                                    set_surf.blit(font_h.render("SPAWN", True, (255,255,255)), (spawn_btn.x+2, spawn_btn.y+5))
-                                                    
-                                                    if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and not hasattr(player, "_btn_lock"):
-                                                        if pygame.Rect(play_w+spawn_btn.x, spawn_btn.y, spawn_btn.w, spawn_btn.h).collidepoint(m_pos):
-                                                            new_prof = AseProfile(f"PROP_{len(player.profiles)}", s.id)
-                                                            new_prof.is_prop_profile = True
-                                                            player.profiles.append(new_prof)
-                                                            player.auto_map_profile(new_prof)
-                                                            player.prop_list.append(AseAI(player, new_prof, is_prop=True, hp=3))
-                                                            player._btn_lock = 15
-                                                    
-                                                    # Right click to delete resource
-                                                    if m_pos[1] > 70 and pygame.mouse.get_pressed()[2] and not hasattr(player, "_btn_lock"):
-                                                        if pygame.Rect(play_w+20, ly-2, sidebar_w-40, 28).collidepoint(m_pos):
-                                                            player.sources.remove(s)
-                                                            player.prop_list = [p for p in player.prop_list if p.profile.source_idx != s.id]
-                                                            player._btn_lock = 15
-                                                    cy += 35
-                                                cy += 10
-                                            elif cat == "PHYSICS": cy += 185
-                                            elif cat == "AI & COMBAT": cy += 120 + max(0, ((len(player.profiles)-2)//4)*30)
-                                            elif cat == "JUICE & VFX": cy += 175
-                                            elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
-                                            elif cat == "CAMERA": cy += 85
-                                            elif cat == "BG IMAGE": cy += 25 + max(1, ((len(player.bg_layers)-1)//5 + 1)) * 30 + 10 + (270 if player.active_bg_layer < len(player.bg_layers) else 0)
-                                            elif cat == "BG COLOR": cy += 170
-                                            elif cat == "CONTROLS": cy += len(player.key_map) * 30 + 10
+                                cy = 60 + settings_scroll
+                                for cat in folds.keys():
+                                    hr = pygame.Rect(play_w+10, cy, sidebar_w-20, 30)
+                                    if hr.collidepoint(m_pos): folds[cat] = not folds[cat]
+                                    cy += 35
+                                    if folds[cat]:
+                                        if cat == "PROPS":
+                                            for i, s in enumerate([s for s in player.sources if getattr(s, 'is_prop_source', False)]):
+                                                ly = cy
+                                                spawn_btn = pygame.Rect(sidebar_w-100, ly, 40, 24)
+                                                
+                                                if not hasattr(player, "_btn_lock"):
+                                                    # Spawn Button (Left Click)
+                                                    if pygame.Rect(play_w+spawn_btn.x, spawn_btn.y, spawn_btn.w, spawn_btn.h).collidepoint(m_pos):
+                                                        new_prof = AseProfile(f"PROP_{len(player.profiles)}", s.id)
+                                                        new_prof.is_prop_profile = True
+                                                        player.profiles.append(new_prof)
+                                                        player.auto_map_profile(new_prof)
+                                                        player.prop_list.append(AseAI(player, new_prof, is_prop=True, hp=3))
+                                                        player._btn_lock = 15
+                                                
+                                                cy += 35
+                                            cy += 10
+                                        elif cat == "PHYSICS": cy += 185
+                                        elif cat == "AI & COMBAT": cy += 120 + max(0, ((len(player.profiles)-2)//4)*30)
+                                        elif cat == "JUICE & VFX": cy += 175
+                                        elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
+                                        elif cat == "CAMERA": cy += 85
+                                        elif cat == "BG IMAGE": cy += 25 + max(1, ((len(player.bg_layers)-1)//5 + 1)) * 30 + 10 + (270 if player.active_bg_layer < len(player.bg_layers) else 0)
+                                        elif cat == "BG COLOR": cy += 170
+                                        elif cat == "CONTROLS": cy += len(player.key_map) * 30 + 10
                             else:
                                 cur_p = player.profiles[player.cur_profile_idx]
                                 # 1. Slot Area Selection (80 ~ 450)
@@ -1360,10 +1440,35 @@ def main():
                                     else:
                                         log_debug("[WARN] Cannot remove source in use.")
                                     break
-                        elif play_w < m_pos[0] < sw and player.profiles:
-                            cur_p = player.profiles[player.cur_profile_idx]
-                            for i, action in enumerate(cur_p.mappings.keys()):
-                                if pygame.Rect(play_w+20, 85+i*38+slot_scroll, sidebar_w-40, 34).collidepoint(m_pos): cur_p.mappings[action] = []
+                        elif play_w < m_pos[0] < sw:
+                            if show_settings and m_pos[1] > 70:
+                                cy = 60 + settings_scroll
+                                for cat in folds.keys():
+                                    hr = pygame.Rect(play_w+10, cy, sidebar_w-20, 30)
+                                    cy += 35
+                                    if folds[cat]:
+                                        if cat == "PROPS":
+                                            for s in [src for src in player.sources if getattr(src, 'is_prop_source', False)]:
+                                                if pygame.Rect(play_w+20, cy-2, sidebar_w-40, 28).collidepoint(m_pos):
+                                                    # Remove all props using this profile
+                                                    player.prop_list = [p for p in getattr(player, 'prop_list', []) if p.profile.source_idx != s.id]
+                                                    player.remove_source_by_index(s.id)
+                                                    player.save_settings()
+                                                    break # Break loop after modifying list
+                                                cy += 35
+                                            cy += 10
+                                        elif cat == "PHYSICS": cy += 185
+                                        elif cat == "AI & COMBAT": cy += 120 + max(0, ((len(player.profiles)-2)//4)*30)
+                                        elif cat == "JUICE & VFX": cy += 175
+                                        elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
+                                        elif cat == "CAMERA": cy += 85
+                                        elif cat == "BG IMAGE": cy += 25 + max(1, ((len(player.bg_layers)-1)//5 + 1)) * 30 + 10 + (270 if player.active_bg_layer < len(player.bg_layers) else 0)
+                                        elif cat == "BG COLOR": cy += 170
+                                        elif cat == "CONTROLS": cy += len(player.key_map) * 30 + 10
+                            elif not show_settings and player.profiles:
+                                cur_p = player.profiles[player.cur_profile_idx]
+                                for i, action in enumerate(cur_p.mappings.keys()):
+                                    if pygame.Rect(play_w+20, 85+i*38+slot_scroll, sidebar_w-40, 34).collidepoint(m_pos): cur_p.mappings[action] = []
             if event.type == pygame.MOUSEBUTTONUP and event.button == 3: is_dragging_cam = False
             if event.type == pygame.KEYDOWN and player:
                 if active_input_attr:
@@ -1597,9 +1702,6 @@ def main():
                                     active_input_attr = None
                                     player.debris_force = ((m_pos[0]-(play_w+110))/(sidebar_w-160)) * 5.0; player.save_settings()
 
-                            if hasattr(player, "_btn_lock"): 
-                                player._btn_lock -= 1; 
-                                if player._btn_lock <= 0: delattr(player, "_btn_lock")
                             cy += 175
                         elif cat == "LAYERS" and player.sources:
                             src = player.sources[min(player.cur_source_idx, len(player.sources)-1)]
