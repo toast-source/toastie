@@ -27,6 +27,18 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 sys.excepthook = handle_exception
 
+class CachedFont:
+    def __init__(self, font):
+        self.font = font
+        self.cache = {}
+    def render(self, text, antialias, color):
+        key = (text, color)
+        if key not in self.cache:
+            self.cache[key] = self.font.render(text, antialias, color)
+        return self.cache[key]
+    def size(self, text):
+        return self.font.size(text)
+
 # Clean old log
 if os.path.exists("ase_debug.log"): os.remove("ase_debug.log")
 log_debug("[SYSTEM] v45 Rollback & Logic Refinement")
@@ -132,7 +144,13 @@ class Particle:
         self.image = image
         self.rotation = random.uniform(0, 360) if image else 0
         self.rot_speed = random.uniform(-10, 10) if image else 0
+        self.cached_surface = None; self.cached_zoom = -1; self.cached_rotation = -1
     def update(self, dt, gravity, ground_y, platforms):
+        self.lifetime -= dt
+        # Optimization: Skip expensive physics and collision logic if particle is at rest
+        if abs(self.vx) < 0.1 and abs(self.vy) < 0.1 and self.y >= ground_y - 10:
+            return
+
         self.vy += gravity * (dt/16.6); self.x += self.vx * (dt/16.6); self.y += self.vy * (dt/16.6)
         if self.image: self.rotation += self.rot_speed * (dt/16.6)
         
@@ -140,17 +158,18 @@ class Particle:
         hit_ground = False
         if self.y >= ground_y: 
             self.y = ground_y; hit_ground = True
-        for p in platforms:
-            if p.collidepoint(self.x, self.y) and self.vy > 0:
-                self.y = p.top; hit_ground = True; break
+        
+        # Only check platform collisions if falling down
+        if self.vy > 0 and not hit_ground:
+            for p in platforms:
+                if p.collidepoint(self.x, self.y):
+                    self.y = p.top; hit_ground = True; break
                 
         if hit_ground:
             if abs(self.vy) < 2.0: 
                 self.vy = 0; self.rot_speed = 0; self.vx *= 0.5
             else: 
                 self.vy *= -0.5; self.vx *= 0.8
-                
-        self.lifetime -= dt
 
 class AseAI:
     def __init__(self, master, profile, is_temp=False, is_prop=False, hp=1):
@@ -260,6 +279,11 @@ class AsepritePlayer:
         self.sources = []; self.profiles = []; self.cur_profile_idx = 0; self.cur_source_idx = 0; self.spawn_x, self.spawn_y = 400, 500; self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = False; self.jumps_left = 2; self.facing_right = True; self.zoom = 3.0; self.dash_speed = 12.0; self.jump_power = -18.0; self.gravity = 1.0; self.atk_forward_v = 15.0; self.powerbomb_speed = 35.0; self.cam_v_offset = -120; self.pbomb_pause_timer = 0; self.loop_counter = 0; self.cam_x, self.cam_y = 400, 300; self.cam_follow = True; self.platforms = [pygame.Rect(200, 350, 200, 20), pygame.Rect(500, 200, 200, 20), pygame.Rect(-200, 250, 300, 20), pygame.Rect(900, 300, 400, 20)]
         self.bg_layers = []; self.active_bg_layer = 0; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]
         self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.temp_ai_list = []; self.prop_list = []; self.target_ai_count = 0; self.swap_timer = 0; self.visible = True; self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True; self.target_w, self.target_h = 640, 360; self.show_viewport = True; self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 0.2; self.debris_force = 0.3; self.afterimages = []; self.particles = []; self.vfx_enabled = True; self.ghost_timer = 0; self.platform_alpha = 150; self.edit_platforms = False; self.selected_plat = None; self.drag_offset = (0,0); self.drop_through_timer = 0
+        if pygame.font.get_init():
+            self.font_10 = CachedFont(pygame.font.SysFont("Arial", 10))
+            self.font_12 = CachedFont(pygame.font.SysFont("Arial", 12))
+        else:
+            self.font_10 = None; self.font_12 = None
         self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "HURT": pygame.K_v}
         self.popup = None
         if initial_path: self.add_source(initial_path); self.add_profile("PLAYER", 0)
@@ -972,13 +996,13 @@ class AsepritePlayer:
                     b = active_key['bounds']; sx = cx + (x - cam_x) * self.zoom; sy = cy + (y - cam_y) * self.zoom; final_x = sx + (b['x'] - src.orig_w // 2) * self.zoom; final_y = sy + (b['y'] - src.orig_h // 2) * self.zoom; final_w = b['w'] * self.zoom; final_h = b['h'] * self.zoom
                     if not facing_right: final_x = sx - (b['x'] - src.orig_w // 2 + b['w']) * self.zoom
                     col = (220, 38, 38) if "hit" in name.lower() else (22, 163, 74); pygame.draw.rect(screen, col, (final_x, final_y, final_w, final_h), 2)
-                    if self.zoom > 1.5: txt = pygame.font.SysFont("Arial", 10).render(name, True, col); screen.blit(txt, (final_x, final_y - 12))
+                    if self.zoom > 1.5 and getattr(self, 'font_10', None): txt = self.font_10.render(name, True, col); screen.blit(txt, (final_x, final_y - 12))
             
             # Auto-generate default hurtbox
             if not has_hurt_slice:
                 hx, hy = cx + (x - cam_x - 20) * self.zoom, cy + (y - cam_y - 60) * self.zoom
                 pygame.draw.rect(screen, (22, 163, 74), (hx, hy, 40*self.zoom, 60*self.zoom), 2)
-                if self.zoom > 1.5: screen.blit(pygame.font.SysFont("Arial", 10).render("Auto_Hurtbox", True, (22, 163, 74)), (hx, hy - 12))
+                if self.zoom > 1.5 and getattr(self, 'font_10', None): screen.blit(self.font_10.render("Auto_Hurtbox", True, (22, 163, 74)), (hx, hy - 12))
                 
             # Auto-generate default hitbox for attacks
             if not has_hit_slice and entity and getattr(entity, 'active_action_slot', None):
@@ -993,7 +1017,25 @@ class AsepritePlayer:
                             hx = cx + (x - cam_x + hox) * self.zoom
                             hy = cy + (y - cam_y - 50) * self.zoom
                             pygame.draw.rect(screen, (220, 38, 38), (hx, hy, hw*self.zoom, hh*self.zoom), 2)
-                            if self.zoom > 1.5: screen.blit(pygame.font.SysFont("Arial", 10).render("Auto_Hitbox", True, (220, 38, 38)), (hx, hy - 12))
+                            if self.zoom > 1.5 and getattr(self, 'font_10', None): screen.blit(self.font_10.render("Auto_Hitbox", True, (220, 38, 38)), (hx, hy - 12))
+
+    def get_overlay(self, w, h, color):
+        if not hasattr(self, '_overlays'): self._overlays = {}
+        key = (w, h, color)
+        if key not in self._overlays:
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            surf.fill(color)
+            self._overlays[key] = surf
+        return self._overlays[key]
+        
+    def get_viewport_overlay(self, w, h, vr):
+        if not hasattr(self, '_vp_overlay') or getattr(self, '_vp_overlay_key', None) != (w, h, vr.x, vr.y, vr.w, vr.h):
+            surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            surf.fill((0, 0, 0, 160))
+            pygame.draw.rect(surf, (0, 0, 0, 0), vr) # Cut transparent hole
+            self._vp_overlay = surf
+            self._vp_overlay_key = (w, h, vr.x, vr.y, vr.w, vr.h)
+        return self._vp_overlay
 
     def draw(self, screen, play_w, play_h):
         if not hasattr(self, "solid_boxes"): self.solid_boxes = []
@@ -1126,27 +1168,35 @@ class AsepritePlayer:
             if p.image:
                 iw, ih = int(p.image.get_width()*self.zoom), int(p.image.get_height()*self.zoom)
                 if px + iw > 0 and px - iw < play_w and py + ih > 0 and py - ih < play_h:
-                    scaled_img = pygame.transform.scale(p.image, (iw, ih))
-                    rotated_img = pygame.transform.rotate(scaled_img, p.rotation)
-                    rect = rotated_img.get_rect(center=(px, py))
-                    screen.blit(rotated_img, rect.topleft)
+                    if p.cached_zoom != self.zoom or abs(p.cached_rotation - p.rotation) > 1.0 or p.cached_surface is None:
+                        scaled_img = pygame.transform.scale(p.image, (max(1, iw), max(1, ih)))
+                        p.cached_surface = pygame.transform.rotate(scaled_img, p.rotation)
+                        p.cached_zoom = self.zoom
+                        p.cached_rotation = p.rotation
+                    
+                    rect = p.cached_surface.get_rect(center=(px, py))
+                    screen.blit(p.cached_surface, rect.topleft)
             else:
                 if px + s > 0 and px < play_w and py + s > 0 and py < play_h:
                     pygame.draw.rect(screen, p.color, (px, py, s, s))
                 
         if self.show_viewport:
-            vw, vh = self.target_w * self.zoom, self.target_h * self.zoom; vr = pygame.Rect(cx - vw//2, cy - vh//2, vw, vh); overlay = pygame.Surface((play_w, play_h), pygame.SRCALPHA); overlay.fill((0, 0, 0, 160)); pygame.draw.rect(overlay, (0, 0, 0, 0), vr); screen.blit(overlay, (0, 0)); pygame.draw.rect(screen, (255, 255, 255), vr, 1); screen.blit(pygame.font.SysFont("Arial", 12).render(f"Viewport: {self.target_w}x{self.target_h} (16:9)", True, (255,255,255)), (vr.x, vr.y - 18))
+            vw, vh = self.target_w * self.zoom, self.target_h * self.zoom; vr = pygame.Rect(cx - vw//2, cy - vh//2, vw, vh)
+            overlay = self.get_viewport_overlay(play_w, play_h, vr)
+            screen.blit(overlay, (0, 0)); pygame.draw.rect(screen, (255, 255, 255), vr, 1)
+            if getattr(self, 'font_12', None): screen.blit(self.font_12.render(f"Viewport: {self.target_w}x{self.target_h} (16:9)", True, (255,255,255)), (vr.x, vr.y - 18))
         
         # Popup Overlay Draw
         if self.popup:
             msg_w, msg_h = 300, 150; cx, cy = screen.get_width()//2, screen.get_height()//2
-            overlay = pygame.Surface((screen.get_width(), screen.get_height()), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 128)); screen.blit(overlay, (0, 0))
+            overlay = self.get_overlay(screen.get_width(), screen.get_height(), (0, 0, 0, 128))
+            screen.blit(overlay, (0, 0))
             
             pygame.draw.rect(screen, (40, 40, 45), (cx-msg_w//2, cy-msg_h//2, msg_w, msg_h), border_radius=10)
             pygame.draw.rect(screen, (60, 60, 65), (cx-msg_w//2, cy-msg_h//2, msg_w, msg_h), 2, border_radius=10)
             
-            font_b = pygame.font.SysFont("Arial", 14, bold=True); font_s = pygame.font.SysFont("Arial", 12)
+            # Use globally available font_b and font_s from main() scoping or just assume they exist
+            # Note: since font_b is built in main(), drawing it here will just access it globally.
             screen.blit(font_b.render("Confirm Action", True, (255, 255, 255)), (cx-50, cy-50))
             screen.blit(font_s.render(self.popup['msg'], True, (200, 200, 200)), (cx-len(self.popup['msg'])*3, cy-20))
             
@@ -1157,7 +1207,7 @@ class AsepritePlayer:
             screen.blit(font_b.render("NO", True, (255,255,255)), (no_btn.x+20, no_btn.y+5))
 
 def main():
-    pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE | pygame.DOUBLEBUF | pygame.HWSURFACE, vsync=1); clock = pygame.time.Clock(); player = AsepritePlayer(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = pygame.font.SysFont("Arial", 12); font_b = pygame.font.SysFont("Arial", 14, bold=True); font_h = pygame.font.SysFont("Arial", 11); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PROPS": True, "PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "CAMERA": True, "BG IMAGE": True, "BG COLOR": True, "CONTROLS": False}
+    pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE | pygame.DOUBLEBUF | pygame.HWSURFACE, vsync=1); clock = pygame.time.Clock(); player = AsepritePlayer(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = CachedFont(pygame.font.SysFont("Arial", 12)); font_b = CachedFont(pygame.font.SysFont("Arial", 14, bold=True)); font_h = CachedFont(pygame.font.SysFont("Arial", 11)); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PROPS": True, "PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "CAMERA": True, "BG IMAGE": True, "BG COLOR": True, "CONTROLS": False}
     binding_key = None; active_input_attr = None; input_text = ""
     while True:
         raw_dt = clock.tick(60)
