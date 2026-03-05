@@ -137,6 +137,18 @@ class AseProfile:
         self.name = name; self.source_idx = source_idx
         self.mappings = { "IDLE": [], "WALK": [], "JUMP": [], "FALL": [], "ComboAttack_1": [], "ComboAttack_2": [], "ComboAttack_3": [], "ComboAttack_4": [], "JUMPATTACK": [], "POWERBOMB": [], "DASH": [], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [], "Swap_Exit": [], "Break1": [], "Break2": [] }
 
+class Spark:
+    def __init__(self, x, y, angle, speed, color, length, width, lifetime):
+        self.x = x; self.y = y; self.angle = angle; self.speed = speed
+        self.color = color; self.length = length; self.width = width
+        self.lifetime = lifetime; self.max_life = lifetime
+    def update(self, dt):
+        self.x += math.cos(self.angle) * self.speed * (dt/16.6)
+        self.y += math.sin(self.angle) * self.speed * (dt/16.6)
+        self.speed *= 0.85 # Friction/drag
+        self.lifetime -= dt
+        self.length *= 0.9 # Shrink over time
+
 class Particle:
     def __init__(self, x, y, vx, vy, color, size, lifetime, image=None):
         self.x = x; self.y = y; self.vx = vx; self.vy = vy
@@ -184,7 +196,8 @@ class AseAI:
             self.stage_hp = 3
             self.hp = 999 # Use stage_hp instead
         else:
-            self.hp = hp
+            self.hp = getattr(master, 'npc_max_hp', 10) if hp == 1 else hp
+            self.max_hp = self.hp
     def update(self, ground_y, dt):
         if self.hit_cooldown > 0: self.hit_cooldown -= dt
         if self.swap_timer > 0:
@@ -198,7 +211,14 @@ class AseAI:
             if self.ai_timer <= 0:
                 choices = ["IDLE", "CHASE", "ATTACK", "DASH", "JUMP", "SWAP"] if abs(dist_p) < 600 else ["IDLE", "WALK_L", "WALK_R"]
                 self.decision = random.choice(choices); self.ai_timer = random.randint(40, 120)
-                if self.decision == "SWAP": self.trigger_action("Swap_Exit")
+                if self.decision == "SWAP":
+                    # Teleport near player instead of disappearing
+                    self.x = self.master.x + random.choice([-150, 150])
+                    self.y = self.master.y - 50
+                    self.vy = 0
+                    # Spawn teleport dust
+                    for _ in range(5):
+                        self.master.particles.append(Particle(self.x + random.uniform(-10, 10), self.y, random.uniform(-2, 2), random.uniform(-5, -1), (150, 150, 150), random.uniform(8, 15), 400))
                 elif self.decision == "ATTACK" and abs(dist_p) < 200: self.facing_right = dist_p > 0; self.trigger_action(f"ComboAttack_{random.randint(1,4)}")
                 elif self.decision == "DASH": self.facing_right = dist_p > 0; self.trigger_action("DASH")
                 elif self.decision == "JUMP" and self.grounded: self.vy = self.master.jump_power; self.grounded = False
@@ -278,12 +298,13 @@ class AsepritePlayer:
     def __init__(self, initial_path=None):
         self.sources = []; self.profiles = []; self.cur_profile_idx = 0; self.cur_source_idx = 0; self.spawn_x, self.spawn_y = 400, 500; self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = False; self.jumps_left = 2; self.facing_right = True; self.zoom = 3.0; self.dash_speed = 12.0; self.jump_power = -18.0; self.gravity = 1.0; self.atk_forward_v = 15.0; self.powerbomb_speed = 35.0; self.cam_v_offset = -120; self.pbomb_pause_timer = 0; self.loop_counter = 0; self.cam_x, self.cam_y = 400, 300; self.cam_follow = True; self.platforms = [pygame.Rect(200, 350, 200, 20), pygame.Rect(500, 200, 200, 20), pygame.Rect(-200, 250, 300, 20), pygame.Rect(900, 300, 400, 20)]
         self.bg_layers = []; self.active_bg_layer = 0; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]
-        self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.temp_ai_list = []; self.prop_list = []; self.target_ai_count = 0; self.swap_timer = 0; self.visible = True; self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True; self.target_w, self.target_h = 640, 360; self.show_viewport = True; self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 0.2; self.debris_force = 0.3; self.afterimages = []; self.particles = []; self.vfx_enabled = True; self.ghost_timer = 0; self.platform_alpha = 150; self.edit_platforms = False; self.selected_plat = None; self.drag_offset = (0,0); self.drop_through_timer = 0
+        self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.temp_ai_list = []; self.prop_list = []; self.target_ai_count = 0; self.npc_max_hp = 10; self.swap_timer = 0; self.visible = True; self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True; self.target_w, self.target_h = 640, 360; self.show_viewport = True; self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 0.2; self.debris_force = 0.3; self.afterimages = []; self.particles = []; self.sparks = []; self.hitstop_timer = 0; self.damage_numbers = []; self.vfx_enabled = True; self.ghost_timer = 0; self.platform_alpha = 150; self.edit_platforms = False; self.selected_plat = None; self.drag_offset = (0,0); self.drop_through_timer = 0
         if pygame.font.get_init():
             self.font_10 = CachedFont(pygame.font.SysFont("Arial", 10))
             self.font_12 = CachedFont(pygame.font.SysFont("Arial", 12))
+            self.font_b = CachedFont(pygame.font.SysFont("Arial", 14, bold=True))
         else:
-            self.font_10 = None; self.font_12 = None
+            self.font_10 = None; self.font_12 = None; self.font_b = None
         self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "HURT": pygame.K_v}
         self.popup = None
         if initial_path: self.add_source(initial_path); self.add_profile("PLAYER", 0)
@@ -302,7 +323,7 @@ class AsepritePlayer:
         bg_layers_data = []
         for bg in self.bg_layers:
             bg_layers_data.append({"path": bg.get('path', ''), "off_x": bg.get('off_x', 0), "off_y": bg.get('off_y', 0), "zoom": bg.get('zoom', 2.0), "alpha": bg.get('alpha', 255), "parallax": bg.get('parallax', 1.0), "loop_x": bg.get('loop_x', False)})
-        data = {"physics": {"dash_speed": self.dash_speed, "jump_power": self.jump_power, "powerbomb_speed": self.powerbomb_speed, "cam_v_offset": self.cam_v_offset}, "combat": {"atk_forward_v": self.atk_forward_v}, "vfx": {"shake_enabled": self.shake_enabled, "vfx_enabled": self.vfx_enabled, "base_shake": self.base_shake, "debris_force": self.debris_force}, "viewport": {"show_viewport": self.show_viewport, "target_w": self.target_w, "target_h": self.target_h}, "bg": {"bg_color": self.bg_color, "layers": bg_layers_data}, "ai": {"target_ai_count": self.target_ai_count}, "platforms": {"alpha": self.platform_alpha}}
+        data = {"physics": {"dash_speed": self.dash_speed, "jump_power": self.jump_power, "powerbomb_speed": self.powerbomb_speed, "cam_v_offset": self.cam_v_offset}, "combat": {"atk_forward_v": self.atk_forward_v}, "vfx": {"shake_enabled": self.shake_enabled, "vfx_enabled": self.vfx_enabled, "base_shake": self.base_shake, "debris_force": self.debris_force}, "viewport": {"show_viewport": self.show_viewport, "target_w": self.target_w, "target_h": self.target_h}, "bg": {"bg_color": self.bg_color, "layers": bg_layers_data}, "ai": {"target_ai_count": self.target_ai_count, "npc_max_hp": getattr(self, 'npc_max_hp', 10)}, "platforms": {"alpha": self.platform_alpha}}
         try:
             with open("ase_settings.json", "w") as f: json.dump(data, f, indent=4)
         except: pass
@@ -678,9 +699,25 @@ class AsepritePlayer:
                 ai_rect = pygame.Rect(ai.x - 20, ai.y - 60, 40, 60) # Default approximate hurtbox
                 for hb in hitboxes:
                     if hb.colliderect(ai_rect):
-                        ai.hp -= 1; ai.hit_cooldown = 500
-                        if self.shake_enabled: self.shake_timer = 10; self.shake_intensity = 5
+                        dmg = random.randint(1, 3)
+                        ai.hp -= dmg; ai.hit_cooldown = 150
                         
+                        # Add floating damage number
+                        self.damage_numbers.append({'val': dmg, 'x': ai.x + random.uniform(-10, 10), 'y': ai.y - 60, 'lifetime': 1000, 'max_life': 1000, 'vy': -2})
+                        
+                        if self.shake_enabled: self.shake_timer = 10; self.shake_intensity = 5
+                        self.hitstop_timer = 60 # 60ms Hit-stop for impact
+                        
+                        # Knockback (only for NPCs, not props)
+                        if not getattr(ai, 'is_prop', False):
+                            ai.vx = 8 if self.x < ai.x else -8
+                            ai.vy = -3 # Slight airborne knockback
+                        
+                        # Generate Impact Sparks
+                        for _ in range(5):
+                            angle = random.uniform(math.pi*0.8, math.pi*1.2) if self.x < ai.x else random.uniform(-math.pi*0.2, math.pi*0.2)
+                            self.sparks.append(Spark(ai.x, ai.y - 30, angle, random.uniform(20, 40), (255, 200, 50), random.uniform(15, 30), random.uniform(1, 2), 200))
+                            
                         # Generate Hit Particles
                         hit_particles_spawned = False
                         if getattr(ai, 'is_prop', False) and ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
@@ -808,10 +845,42 @@ class AsepritePlayer:
                                     # Reset HP for the next stage (Break1 or Break2)
                                     ai.stage_hp = 3
                         else:
-                            ai.hp -= 1
                             if ai.hp <= 0:
                                 ai.is_dead = True
-                                ai.trigger_action("HURT")
+                                
+                                # NPC Auto-slice Destruction into 3x3 grid
+                                debris_created = False
+                                if ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
+                                    npc_src = self.sources[ai.profile.source_idx]
+                                    full_frame_img = npc_src.get_frame(ai.frame_idx, 1.0, ai.facing_right)
+                                    if full_frame_img:
+                                        w, h = full_frame_img.get_width(), full_frame_img.get_height()
+                                        cols, rows = 3, 3
+                                        cw, ch = w // cols, h // rows
+                                        if cw > 0 and ch > 0:
+                                            f_info = npc_src.frames[ai.frame_idx]
+                                            start_x = ai.x + f_info['ox'] if ai.facing_right else ai.x - f_info['ox'] - w
+                                            start_y = ai.y + f_info['oy']
+                                            
+                                            for row in range(rows):
+                                                for col in range(cols):
+                                                    try:
+                                                        cropped = pygame.Surface((cw, ch), pygame.SRCALPHA)
+                                                        cropped.blit(full_frame_img, (-col * cw, -row * ch))
+                                                        if not cropped.get_bounding_rect().width: continue
+                                                        px = start_x + col * cw + cw//2
+                                                        py = start_y + row * ch + ch//2
+                                                        self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), max(cw, ch), 5000, image=cropped)) # 5 seconds lifetime
+                                                        debris_created = True
+                                                    except: pass
+                                
+                                if not debris_created:
+                                    for _ in range(10):
+                                        self.particles.append(Particle(ai.x, ai.y - 20, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (220, 38, 38), random.uniform(4, 8), 5000))
+                                
+                                if ai in self.ai_list: 
+                                    self.ai_list.remove(ai)
+                                    self.target_ai_count = max(0, self.target_ai_count - 1)
                         break # Only hit once per attack frame
 
         # Check hits on interactive debris particles
@@ -836,12 +905,31 @@ class AsepritePlayer:
             self._btn_lock -= 1
             if self._btn_lock <= 0: delattr(self, "_btn_lock")
             
+        if getattr(self, 'hitstop_timer', 0) > 0:
+            self.hitstop_timer -= dt
+            dt = dt * 0.1 # Slow down time by 90% during hitstop for impact effect
+            
         self.check_hits()
         
-        # Update particles
+        # Update particles and sparks
         for p in self.particles[:]:
             p.update(dt, self.gravity, ground_y, self.platforms)
             if p.lifetime <= 0: self.particles.remove(p)
+        for s in getattr(self, 'sparks', [])[:]:
+            s.update(dt)
+            if s.lifetime <= 0: self.sparks.remove(s)
+            
+        # Dash Dust
+        if self.dash_timer > 0 and random.random() < 0.5:
+            self.particles.append(Particle(self.x + random.uniform(-10, 10), self.y, random.uniform(-3, 3), random.uniform(-6, -2), (180, 180, 180), random.uniform(2, 6), 400))
+            
+        # Update Damage Numbers
+        for dmg in getattr(self, 'damage_numbers', [])[:]:
+            dmg['lifetime'] -= dt
+            if dmg['lifetime'] <= 0:
+                self.damage_numbers.remove(dmg)
+            else:
+                dmg['y'] += dmg['vy'] * (dt/16.6)
             
         while len(self.ai_list) < self.target_ai_count:
             if len(self.profiles) > 1: self.ai_list.append(AseAI(self, self.profiles[1]))
@@ -1156,9 +1244,39 @@ class AsepritePlayer:
                         screen.blit(stroke_surf, (bx, by))
 
         for ai in self.ai_list + getattr(self, 'prop_list', []) + getattr(self, 'temp_ai_list', []):
-            if ai.visible: ai_s = ai.active_tag_info[0] if ai.active_tag_info else ai.profile.source_idx; self.draw_sprite(screen, ai.x, ai.y, ai_s, ai.frame_idx, ai.facing_right, cam_x, cam_y, cx, cy, entity=ai)
+            if ai.visible: 
+                ai_s = ai.active_tag_info[0] if ai.active_tag_info else ai.profile.source_idx; self.draw_sprite(screen, ai.x, ai.y, ai_s, ai.frame_idx, ai.facing_right, cam_x, cam_y, cx, cy, entity=ai)
+                
+                # Draw HP for NPCs (not props)
+                if not getattr(ai, 'is_prop', False):
+                    hp_pct = max(0, ai.hp / getattr(ai, 'max_hp', 10))
+                    hx = int(cx + (ai.x - cam_x) * self.zoom - 20)
+                    hy = int(cy + (ai.y - cam_y) * self.zoom - 80)
+                    if hx > 0 and hx < play_w and hy > 0 and hy < play_h:
+                        pygame.draw.rect(screen, (220, 38, 38), (hx, hy, 40, 5))
+                        pygame.draw.rect(screen, (22, 163, 74), (hx, hy, int(40 * hp_pct), 5))
+                        if getattr(self, 'font_12', None):
+                            hp_txt = self.font_12.render(f"HP: {ai.hp}", True, (255, 255, 255))
+                            screen.blit(hp_txt, (hx + 20 - hp_txt.get_width()//2, hy - 15))
+
             adx, ady = (ai.x-cam_x)*self.zoom, (ai.y-cam_y)*self.zoom
             if abs(adx)>play_w//2 or abs(ady)>play_h//2: ang = math.atan2(ady, adx); px, py = cx+math.cos(ang)*(play_w//2-40), cy+math.sin(ang)*(play_h//2-40); pygame.draw.circle(screen, (220,38,38), (int(px), int(py)), 12); pygame.draw.line(screen, (255,255,255), (px, py), (px-math.cos(ang)*8, py-math.sin(ang)*8), 2)
+            
+        # Draw Floating Damage Numbers
+        for dmg in getattr(self, 'damage_numbers', []):
+            dx = int(cx + (dmg['x'] - cam_x) * self.zoom)
+            dy = int(cy + (dmg['y'] - cam_y) * self.zoom)
+            if dx > 0 and dx < play_w and dy > 0 and dy < play_h and getattr(self, 'font_b', None):
+                alpha = int(255 * (dmg['lifetime'] / dmg['max_life']))
+                txt_surf = self.font_b.render(str(dmg['val']), True, (255, 255, 255))
+                # Outline
+                bg_surf = self.font_b.render(str(dmg['val']), True, (0, 0, 0))
+                # Apply alpha hack
+                temp_surf = pygame.Surface((txt_surf.get_width()+2, txt_surf.get_height()+2), pygame.SRCALPHA)
+                for ox, oy in [(-1,-1), (-1,1), (1,-1), (1,1), (0,-1), (-1,0), (1,0), (0,1)]: temp_surf.blit(bg_surf, (ox+1, oy+1))
+                temp_surf.blit(txt_surf, (1, 1))
+                temp_surf.set_alpha(alpha)
+                screen.blit(temp_surf, (dx - temp_surf.get_width()//2, dy))
             
         # Draw Particles
         for p in getattr(self, 'particles', []):
@@ -1179,6 +1297,26 @@ class AsepritePlayer:
             else:
                 if px + s > 0 and px < play_w and py + s > 0 and py < play_h:
                     pygame.draw.rect(screen, p.color, (px, py, s, s))
+                    
+        # Draw Sparks
+        for s in getattr(self, 'sparks', []):
+            px = int(cx + (s.x - cam_x) * self.zoom)
+            py = int(cy + (s.y - cam_y) * self.zoom)
+            length = int(s.length * self.zoom)
+            width = max(1, int(s.width * self.zoom))
+            if px + length > 0 and px - length < play_w and py + length > 0 and py - length < play_h:
+                end_x = px - math.cos(s.angle) * length
+                end_y = py - math.sin(s.angle) * length
+                alpha = max(0, min(255, int(255 * (s.lifetime / s.max_life))))
+                if alpha > 0:
+                    surf = pygame.Surface((abs(end_x - px) + width*2, abs(end_y - py) + width*2), pygame.SRCALPHA)
+                    # Simple line drawing with alpha hack: draw onto a surface then blit
+                    lx, ly = max(0, min(px, end_x) - px + width), max(0, min(py, end_y) - py + width)
+                    ex, ey = max(0, max(px, end_x) - px + width), max(0, max(py, end_y) - py + width)
+                    if px > end_x: lx, ex = ex, lx
+                    if py > end_y: ly, ey = ey, ly
+                    pygame.draw.line(surf, (*s.color, alpha), (lx, ly), (ex, ey), width)
+                    screen.blit(surf, (min(px, end_x) - width, min(py, end_y) - width))
                 
         if self.show_viewport:
             vw, vh = self.target_w * self.zoom, self.target_h * self.zoom; vr = pygame.Rect(cx - vw//2, cy - vh//2, vw, vh)
@@ -1517,7 +1655,7 @@ def main():
                                                 cy += 35
                                             cy += 10
                                         elif cat == "PHYSICS": cy += 185
-                                        elif cat == "AI & COMBAT": cy += 120 + max(0, ((len(player.profiles)-2)//4)*30)
+                                        elif cat == "AI & COMBAT": cy += 165 + max(0, ((len(player.profiles)-2)//4)*30)
                                         elif cat == "JUICE & VFX": cy += 175
                                         elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                         elif cat == "CAMERA": cy += 85
@@ -1604,7 +1742,7 @@ def main():
                                                 cy += 35
                                             cy += 10
                                         elif cat == "PHYSICS": cy += 185
-                                        elif cat == "AI & COMBAT": cy += 120 + max(0, ((len(player.profiles)-2)//4)*30)
+                                        elif cat == "AI & COMBAT": cy += 165 + max(0, ((len(player.profiles)-2)//4)*30)
                                         elif cat == "JUICE & VFX": cy += 175
                                         elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                         elif cat == "CAMERA": cy += 85
@@ -1703,7 +1841,7 @@ def main():
                             if folds[cat]:
                                 if cat == "PROPS": calc_h += len([s for s in player.sources if getattr(s, 'is_prop_source', False)]) * 35 + 10
                                 elif cat == "PHYSICS": calc_h += 185
-                                elif cat == "AI & COMBAT": calc_h += 120 + max(0, ((len(player.profiles)-2)//4)*30)
+                                elif cat == "AI & COMBAT": calc_h += 165 + max(0, ((len(player.profiles)-2)//4)*30)
                                 elif cat == "JUICE & VFX": calc_h += 175
                                 elif cat == "LAYERS" and player.sources: calc_h += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                 elif cat == "CAMERA": calc_h += 85
@@ -1791,19 +1929,19 @@ def main():
                                         setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if not inv else -(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
                             cy += 185
                         elif cat == "AI & COMBAT":
-                            for i, (l, mn, mx, at) in enumerate([("AI Count",0,10,"target_ai_count"), ("Atk Forward",0,30,"atk_forward_v")]):
-                                y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(110, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(110+n*(sidebar_w-160)), y+9), 8)
-                                txt_val = input_text + "|" if active_input_attr == at and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == at else (f"{int(v)}" if at == "target_ai_count" else f"{v:.1f}"))
+                            for i, (l, mn, mx, at) in enumerate([("AI Count",0,10,"target_ai_count"), ("NPC Max HP",1,100,"npc_max_hp"), ("Atk Forward",0,30,"atk_forward_v")]):
+                                y = cy+i*45; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); sl = pygame.Rect(110, y+5, sidebar_w-160, 8); pygame.draw.rect(set_surf, (60,60,70), sl); v = getattr(player, at, 10); n = (v-mn)/(mx-mn); pygame.draw.circle(set_surf, (59,130,246), (int(110+n*(sidebar_w-160)), y+9), 8)
+                                txt_val = input_text + "|" if active_input_attr == at and pygame.time.get_ticks() % 1000 < 500 else (input_text if active_input_attr == at else (f"{int(v)}" if at in ["target_ai_count", "npc_max_hp"] else f"{v:.1f}"))
                                 pygame.draw.rect(set_surf, (30,30,35) if active_input_attr == at else (45,45,50), (sidebar_w-45, y-2, 40, 18), border_radius=3)
                                 set_surf.blit(font_s.render(txt_val, True, (255,255,255) if active_input_attr == at else (200,200,200)), (sidebar_w-42, y))
                                 if m_pos[1] > 70 and pygame.mouse.get_pressed()[0]:
                                     if pygame.Rect(play_w+sidebar_w-45, y-2, 40, 18).collidepoint(m_pos):
-                                        if active_input_attr != at: active_input_attr = at; input_text = str(int(v)) if at == "target_ai_count" else str(round(v, 1))
+                                        if active_input_attr != at: active_input_attr = at; input_text = str(int(v)) if at in ["target_ai_count", "npc_max_hp"] else str(round(v, 1))
                                     elif pygame.Rect(play_w+110, y, sidebar_w-160, 20).inflate(0,10).collidepoint(m_pos):
                                         active_input_attr = None
-                                        setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if at != "target_ai_count" else int(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
+                                        setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if at not in ["target_ai_count", "npc_max_hp"] else int(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
                             
-                            y = cy + 90
+                            y = cy + 135
                             set_surf.blit(font_s.render("Swap Target:", True, (150,150,150)), (20, y))
                             j_offset = 0
                             for j in range(1, len(player.profiles)):
@@ -1815,7 +1953,7 @@ def main():
                                 if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+btn.x, btn.y, btn.w, btn.h).collidepoint(m_pos):
                                     player.swap_target_idx = j; player.save_settings()
                                 j_offset += 1
-                            cy += 120 + max(0, ((len(player.profiles)-2)//4)*30)
+                            cy += 165 + max(0, ((len(player.profiles)-2)//4)*30)
                         elif cat == "JUICE & VFX":
                             for i, (l, at) in enumerate([("Enable Shake", "shake_enabled"), ("Enable Ghost", "vfx_enabled")]):
                                 y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); btn = pygame.Rect(sidebar_w-60, y-5, 40, 20); val = getattr(player, at); pygame.draw.rect(set_surf, (22, 163, 74) if val else (220, 38, 38), btn, border_radius=10); pygame.draw.circle(set_surf, (255,255,255), (btn.x+30 if val else btn.x+10, btn.y+10), 8)
