@@ -6,12 +6,14 @@
         "cam_v_offset": -100.0
     },
     "combat": {
-        "atk_forward_v": 15.0
+        "atk_forward_v": 15.0,
+        "is_ranged_combo": false
     },
     "vfx": {
         "shake_enabled": true,
         "vfx_enabled": true,
-        "base_shake": 1.0
+        "base_shake": 0.2,
+        "debris_force": 0.3
     },
     "viewport": {
         "show_viewport": true,
@@ -82,7 +84,8 @@
         ]
     },
     "ai": {
-        "target_ai_count": 0
+        "target_ai_count": 1,
+        "npc_max_hp": 10
     },
     "platforms": {
         "alpha": 150

@@ -137,6 +137,30 @@ class AseProfile:
         self.name = name; self.source_idx = source_idx
         self.mappings = { "IDLE": [], "WALK": [], "JUMP": [], "FALL": [], "ComboAttack_1": [], "ComboAttack_2": [], "ComboAttack_3": [], "ComboAttack_4": [], "JUMPATTACK": [], "POWERBOMB": [], "DASH": [], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [], "Swap_Exit": [], "Break1": [], "Break2": [] }
 
+class Projectile:
+    def __init__(self, master, x, y, vx, vy, source_idx, anim_tag):
+        self.master = master; self.x = x; self.y = y; self.vx = vx; self.vy = vy
+        self.source_idx = source_idx; self.facing_right = vx > 0
+        self.anim_tag = anim_tag
+        if source_idx is not None and source_idx >= 0 and source_idx < len(master.sources):
+            src = master.sources[source_idx]
+            self.frame_idx, self.end_frame = src.tags.get(anim_tag, (0, 0))
+        else:
+            self.frame_idx, self.end_frame = 0, 0
+        self.anim_timer = 0; self.lifetime = 2000; self.active = True
+    def update(self, dt):
+        self.x += self.vx * (dt/16.6); self.y += self.vy * (dt/16.6)
+        self.lifetime -= dt
+        if self.source_idx is not None and self.source_idx >= 0 and self.source_idx < len(self.master.sources):
+            src = self.master.sources[self.source_idx]
+            self.anim_timer += dt
+            if self.anim_timer > src.frames[self.frame_idx]['duration']:
+                self.anim_timer -= src.frames[self.frame_idx]['duration']
+                self.frame_idx += 1
+                if self.frame_idx > self.end_frame: 
+                    tr = src.tags.get(self.anim_tag, (0,0))
+                    self.frame_idx = tr[0]
+
 class Spark:
     def __init__(self, x, y, angle, speed, color, length, width, lifetime):
         self.x = x; self.y = y; self.angle = angle; self.speed = speed
@@ -190,7 +214,7 @@ class AseAI:
         self.spawn_y = master.y - 100
         self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = True; self.facing_right = random.choice([True, False]); self.frame_idx = 0; self.anim_timer = 0; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.ai_timer = random.randint(30, 90); self.decision = "IDLE"; self.swap_timer = 0; self.visible = True; self.active_action_slot = None
         self.is_temp = is_temp; self.attack_buffer = 0; self.combo_step = 0
-        self.is_prop = is_prop; self.hit_cooldown = 0; self.is_dead = False
+        self.is_prop = is_prop; self.hit_cooldown = 0; self.is_dead = False; self.last_hit_frame_idx = -1
         if is_prop:
             self.prop_state = 0 # 0: IDLE, 1: Break1, 2: Break2
             self.stage_hp = 3
@@ -290,7 +314,11 @@ class AseAI:
             self.active_action_slot = slot; self.action_queue = list(tags); self.active_tag_info = self.action_queue.pop(0)
             if self.active_tag_info[0] >= 0 and self.active_tag_info[0] < len(self.master.sources):
                 src = self.master.sources[self.active_tag_info[0]]; self.frame_idx, self.action_end_frame = src.tags.get(self.active_tag_info[1], (0,0)); self.anim_timer = 0
-                if slot == "DASH": self.vx = 8 if self.facing_right else -8
+                if slot == "DASH": 
+                    self.vx = 8 if self.facing_right else -8
+                    self.master.play_sound('dash')
+                elif slot == "JUMP" or slot == "JUMPATTACK":
+                    self.master.play_sound('jump')
             else:
                 self.active_tag_info = None; self.active_action_slot = None; self.action_queue = []
 
@@ -298,16 +326,28 @@ class AsepritePlayer:
     def __init__(self, initial_path=None):
         self.sources = []; self.profiles = []; self.cur_profile_idx = 0; self.cur_source_idx = 0; self.spawn_x, self.spawn_y = 400, 500; self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = False; self.jumps_left = 2; self.facing_right = True; self.zoom = 3.0; self.dash_speed = 12.0; self.jump_power = -18.0; self.gravity = 1.0; self.atk_forward_v = 15.0; self.powerbomb_speed = 35.0; self.cam_v_offset = -120; self.pbomb_pause_timer = 0; self.loop_counter = 0; self.cam_x, self.cam_y = 400, 300; self.cam_follow = True; self.platforms = [pygame.Rect(200, 350, 200, 20), pygame.Rect(500, 200, 200, 20), pygame.Rect(-200, 250, 300, 20), pygame.Rect(900, 300, 400, 20)]
         self.bg_layers = []; self.active_bg_layer = 0; self.bg_color = [15, 15, 18]; self.grid_color = [40, 40, 50]
-        self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.temp_ai_list = []; self.prop_list = []; self.target_ai_count = 0; self.npc_max_hp = 10; self.swap_timer = 0; self.visible = True; self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True; self.target_w, self.target_h = 640, 360; self.show_viewport = True; self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 0.2; self.debris_force = 0.3; self.afterimages = []; self.particles = []; self.sparks = []; self.hitstop_timer = 0; self.damage_numbers = []; self.vfx_enabled = True; self.ghost_timer = 0; self.platform_alpha = 150; self.edit_platforms = False; self.selected_plat = None; self.drag_offset = (0,0); self.drop_through_timer = 0
+        self.frame_idx = 0; self.anim_timer = 0; self.combo_step = 0; self.combo_reset_timer = 0; self.attack_buffer = 0; self.active_action_slot = None; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.dash_charges = 2; self.dash_cooldowns = [0, 0]; self.dash_timer = 0; self.attack_move_timer = 0; self.ai_list = []; self.temp_ai_list = []; self.prop_list = []; self.target_ai_count = 0; self.npc_max_hp = 10; self.swap_timer = 0; self.visible = True; self.playback_speed = 1.0; self.is_paused = False; self.step_forward = False; self.show_hitboxes = True; self.target_w, self.target_h = 640, 360; self.show_viewport = True; self.shake_timer = 0; self.shake_intensity = 0; self.shake_enabled = True; self.base_shake = 0.2; self.debris_force = 0.3; self.afterimages = []; self.particles = []; self.sparks = []; self.projectiles = []; self.last_shot_frame = -1; self.hitstop_timer = 0; self.damage_numbers = []; self.vfx_enabled = True; self.is_ranged_combo = False; self.ghost_timer = 0; self.platform_alpha = 150; self.edit_platforms = False; self.selected_plat = None; self.drag_offset = (0,0); self.drop_through_timer = 0
+        self.hp = 100; self.max_hp = 100; self.skill_cooldowns = [0, 0, 0]
         if pygame.font.get_init():
             self.font_10 = CachedFont(pygame.font.SysFont("Arial", 10))
             self.font_12 = CachedFont(pygame.font.SysFont("Arial", 12))
             self.font_b = CachedFont(pygame.font.SysFont("Arial", 14, bold=True))
+            self.font_dmg = CachedFont(pygame.font.SysFont("Arial", 28, bold=True)) # Larger font for damage
         else:
-            self.font_10 = None; self.font_12 = None; self.font_b = None
+            self.font_10 = None; self.font_12 = None; self.font_b = None; self.font_dmg = None
         self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "HURT": pygame.K_v}
         self.popup = None
+        self.sounds = {}
+        if pygame.mixer.get_init():
+            for snd in ['hit', 'jump', 'dash']:
+                p = os.path.join("sounds", f"{snd}.wav")
+                if os.path.exists(p): self.sounds[snd] = pygame.mixer.Sound(p)
         if initial_path: self.add_source(initial_path); self.add_profile("PLAYER", 0)
+        
+    def play_sound(self, name):
+        if name in self.sounds and self.sounds[name]:
+            self.sounds[name].set_volume(0.3)
+            self.sounds[name].play()
     def update_bg_cache(self):
         zoom_changed = getattr(self, '_last_bg_zoom', None) != self.zoom
         if zoom_changed: self._last_bg_zoom = self.zoom
@@ -323,7 +363,7 @@ class AsepritePlayer:
         bg_layers_data = []
         for bg in self.bg_layers:
             bg_layers_data.append({"path": bg.get('path', ''), "off_x": bg.get('off_x', 0), "off_y": bg.get('off_y', 0), "zoom": bg.get('zoom', 2.0), "alpha": bg.get('alpha', 255), "parallax": bg.get('parallax', 1.0), "loop_x": bg.get('loop_x', False)})
-        data = {"physics": {"dash_speed": self.dash_speed, "jump_power": self.jump_power, "powerbomb_speed": self.powerbomb_speed, "cam_v_offset": self.cam_v_offset}, "combat": {"atk_forward_v": self.atk_forward_v}, "vfx": {"shake_enabled": self.shake_enabled, "vfx_enabled": self.vfx_enabled, "base_shake": self.base_shake, "debris_force": self.debris_force}, "viewport": {"show_viewport": self.show_viewport, "target_w": self.target_w, "target_h": self.target_h}, "bg": {"bg_color": self.bg_color, "layers": bg_layers_data}, "ai": {"target_ai_count": self.target_ai_count, "npc_max_hp": getattr(self, 'npc_max_hp', 10)}, "platforms": {"alpha": self.platform_alpha}}
+        data = {"physics": {"dash_speed": self.dash_speed, "jump_power": self.jump_power, "powerbomb_speed": self.powerbomb_speed, "cam_v_offset": self.cam_v_offset}, "combat": {"atk_forward_v": self.atk_forward_v, "is_ranged_combo": getattr(self, 'is_ranged_combo', False)}, "vfx": {"shake_enabled": self.shake_enabled, "vfx_enabled": self.vfx_enabled, "base_shake": self.base_shake, "debris_force": self.debris_force}, "viewport": {"show_viewport": self.show_viewport, "target_w": self.target_w, "target_h": self.target_h}, "bg": {"bg_color": self.bg_color, "layers": bg_layers_data}, "ai": {"target_ai_count": self.target_ai_count, "npc_max_hp": getattr(self, 'npc_max_hp', 10)}, "platforms": {"alpha": self.platform_alpha}}
         try:
             with open("ase_settings.json", "w") as f: json.dump(data, f, indent=4)
         except: pass
@@ -531,6 +571,14 @@ class AsepritePlayer:
 
     def trigger_action(self, slot, keys=None):
         if self.swap_timer > 0 or not self.profiles: return
+        
+        if "SKILL" in slot:
+            try:
+                s_idx = int(slot[-1]) - 1
+                if self.skill_cooldowns[s_idx] > 0: return
+                self.skill_cooldowns[s_idx] = 3000 # 3 seconds CD
+            except: pass
+
         # Dash can interrupt everything
         if slot == "DASH":
             if self.dash_charges > 0:
@@ -555,7 +603,7 @@ class AsepritePlayer:
 
         if tags:
             log_debug(f"[ACTION] Triggering {slot}")
-            self.active_action_slot = slot; self.action_queue = list(tags); self.loop_counter = 0; self.anim_timer = 0
+            self.active_action_slot = slot; self.action_queue = list(tags); self.loop_counter = 0; self.anim_timer = 0; self.last_shot_frame = -1
             if "ComboAttack" in slot:
                 # Update combo step
                 self.combo_step = int(slot.split("_")[-1])
@@ -594,7 +642,7 @@ class AsepritePlayer:
             if self.active_tag_info[1] in src.tags: 
                 self.frame_idx, self.action_end_frame = src.tags[self.active_tag_info[1]]
                 log_debug(f"  [QUEUE] Start Tag: {self.active_tag_info[1]} (Frames {self.frame_idx}-{self.action_end_frame})")
-                self.loop_counter = 0; self.anim_timer = 0
+                self.loop_counter = 0; self.anim_timer = 0; self.last_shot_frame = -1
             else: self.play_next_in_queue()
         else:
             log_debug(f"  [QUEUE] Empty for {self.active_action_slot}")
@@ -636,7 +684,7 @@ class AsepritePlayer:
         temp_ai.frame_idx = self.frame_idx
         temp_ai.anim_timer = self.anim_timer
         
-        if not temp_ai.active_action_slot:
+        if not temp_ai.active_action_slot or "attack" not in temp_ai.active_action_slot.lower():
             temp_ai.trigger_action("Swap_Exit")
             
         self.temp_ai_list.append(temp_ai)
@@ -663,50 +711,177 @@ class AsepritePlayer:
         self.swap_vfx_max_timer = 400
         self.visible = True
 
+    def trigger_npc_death(self, ai):
+        if ai.is_dead: return
+        ai.is_dead = True
+        
+        # NPC Auto-slice Destruction into 3x3 grid
+        debris_created = False
+        if ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
+            npc_src = self.sources[ai.profile.source_idx]
+            full_frame_img = npc_src.get_frame(ai.frame_idx, 1.0, ai.facing_right)
+            if full_frame_img:
+                w, h = full_frame_img.get_width(), full_frame_img.get_height()
+                cols, rows = 3, 3
+                cw, ch = w // cols, h // rows
+                if cw > 0 and ch > 0:
+                    f_info = npc_src.frames[ai.frame_idx]
+                    start_x = ai.x + f_info['ox'] if ai.facing_right else ai.x - f_info['ox'] - w
+                    start_y = ai.y + f_info['oy']
+                    
+                    for row in range(rows):
+                        for col in range(cols):
+                            try:
+                                cropped = pygame.Surface((cw, ch), pygame.SRCALPHA)
+                                cropped.blit(full_frame_img, (-col * cw, -row * ch))
+                                if not cropped.get_bounding_rect().width: continue
+                                px = start_x + col * cw + cw//2
+                                py = start_y + row * ch + ch//2
+                                self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), max(cw, ch), 5000, image=cropped)) # 5 seconds lifetime
+                                debris_created = True
+                            except: pass
+        
+        if not debris_created:
+            for _ in range(10):
+                self.particles.append(Particle(ai.x, ai.y - 20, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (220, 38, 38), random.uniform(4, 8), 5000))
+        
+        if ai in self.ai_list: 
+            self.ai_list.remove(ai)
+            self.target_ai_count = max(0, self.target_ai_count - 1)
+
+    def trigger_prop_death(self, ai):
+        if ai.is_dead: return
+        ai.is_dead = True
+        # --- Prop Destruction Logic ---
+        # Generate precise debris from the "Parts" tag and its internal Slices
+        debris_created = False
+        if ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
+            prop_src = self.sources[ai.profile.source_idx]
+            # Look for a tag named 'Parts' (case-insensitive)
+            parts_tag = next((t for t in prop_src.tags.keys() if "parts" in t.lower()), None)
+            if parts_tag:
+                p_frame = prop_src.tags[parts_tag][0]
+                full_frame_img = prop_src.get_frame(p_frame, 1.0, True) # Unscaled original frame
+                if full_frame_img:
+                    for s_name, s_keys in prop_src.slices.items():
+                        active_key = None
+                        for key in s_keys:
+                            if key['frame'] <= p_frame:
+                                if active_key is None or key['frame'] > active_key['frame']:
+                                    active_key = key
+                        if active_key:
+                            b = active_key['bounds']
+                            try:
+                                # Crop the exact slice area from the Aseprite canvas
+                                cropped = pygame.Surface((b['w'], b['h']), pygame.SRCALPHA)
+                                f_info = prop_src.frames[p_frame]
+                                crop_x = b['x'] - prop_src.orig_w // 2 - f_info['ox']
+                                crop_y = b['y'] - prop_src.orig_h // 2 - f_info['oy']
+                                cropped.blit(full_frame_img, (-crop_x, -crop_y))
+                                
+                                # Calculate precise spawn location of the debris in the game world 
+                                # based on the slice's visual offset from the prop's center pivot
+                                if ai.facing_right:
+                                    px = ai.x + (b['x'] - prop_src.orig_w // 2) + b['w'] / 2
+                                else:
+                                    px = ai.x - (b['x'] - prop_src.orig_w // 2 + b['w']) + b['w'] / 2
+                                py = ai.y + (b['y'] - prop_src.orig_h // 2) + b['h'] / 2
+                                
+                                self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), 10, 10000, image=cropped))
+                                debris_created = True
+                            except Exception as e:
+                                log_debug(f"Failed to crop prop slice: {e}")
+        
+        # Fallback: Auto-slice the current frame into a 3x3 grid if no Parts tag exists
+        if not debris_created and ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
+            prop_src = self.sources[ai.profile.source_idx]
+            full_frame_img = prop_src.get_frame(ai.frame_idx, 1.0, ai.facing_right)
+            if full_frame_img:
+                w, h = full_frame_img.get_width(), full_frame_img.get_height()
+                cols, rows = 3, 3
+                cw, ch = w // cols, h // rows
+                if cw > 0 and ch > 0:
+                    f_info = prop_src.frames[ai.frame_idx]
+                    start_x = ai.x + f_info['ox'] if ai.facing_right else ai.x - f_info['ox'] - w
+                    start_y = ai.y + f_info['oy']
+                    
+                    for row in range(rows):
+                        for col in range(cols):
+                            try:
+                                cropped = pygame.Surface((cw, ch), pygame.SRCALPHA)
+                                cropped.blit(full_frame_img, (-col * cw, -row * ch))
+                                
+                                # Skip completely empty/transparent chunks
+                                if not cropped.get_bounding_rect().width: continue
+                                
+                                px = start_x + col * cw + cw//2
+                                py = start_y + row * ch + ch//2
+                                
+                                self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), max(cw, ch), 10000, image=cropped))
+                                debris_created = True
+                            except Exception as e:
+                                log_debug(f"Auto-slice failed: {e}")
+        
+        # Ultimate Fallback: Just in case the image was too small to slice
+        if not debris_created:
+            for _ in range(15):
+                self.particles.append(Particle(ai.x, ai.y - 20, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (139, 69, 19), random.uniform(4, 8), random.randint(500, 1000)))
+        
+        if ai in getattr(self, 'prop_list', []): self.prop_list.remove(ai)
+
     def check_hits(self):
         if not self.active_tag_info or self.active_tag_info[0] < 0 or self.active_tag_info[0] >= len(self.sources): return
         src = self.sources[self.active_tag_info[0]]
         hitboxes = []
         has_hit_slice = False
+        shoot_pt = None
         for name, keys in src.slices.items():
-            if "hit" in name.lower():
-                has_hit_slice = True
-                active_key = None
-                for key in keys:
-                    if key['frame'] <= self.frame_idx:
-                        if active_key is None or key['frame'] > active_key['frame']: active_key = key
-                if active_key:
-                    b = active_key['bounds']
-                    ox = (b['x'] - src.orig_w // 2) if self.facing_right else -(b['x'] - src.orig_w // 2 + b['w'])
+            active_key = None
+            for key in keys:
+                if key['frame'] <= self.frame_idx:
+                    if active_key is None or key['frame'] > active_key['frame']: active_key = key
+            if active_key:
+                b = active_key['bounds']
+                ox = (b['x'] - src.orig_w // 2) if self.facing_right else -(b['x'] - src.orig_w // 2 + b['w'])
+                if "shoot" in name.lower():
+                    shoot_pt = (self.x + ox + b['w']//2, self.y + b['y'] - src.orig_h // 2 + b['h']//2)
+                elif "hit" in name.lower() and not getattr(self, 'is_ranged_combo', False):
+                    has_hit_slice = True
                     hitboxes.append(pygame.Rect(self.x + ox, self.y + b['y'] - src.orig_h // 2, b['w'], b['h']))
-        
-        # Auto-generate hitbox if none exists and this is an attack
-        if not has_hit_slice and self.active_action_slot:
+
+        if self.active_action_slot:
             slot_l = self.active_action_slot.lower()
             tag_name_l = self.active_tag_info[1].lower()
             if ("attack" in slot_l or "powerbomb" in slot_l or "dash" in slot_l or "skill" in slot_l) and "ready" not in tag_name_l and "end" not in tag_name_l:
                 tr = src.tags.get(self.active_tag_info[1], (0, 0))
-                # Only hit on the first frame of the attack animation to prevent multi-hits per action
-                if self.frame_idx == tr[0]:
-                    hw, hh = 60, 50
-                    ox = 10 if self.facing_right else -10 - hw
-                    hitboxes.append(pygame.Rect(self.x + ox, self.y - 50, hw, hh))
-
-        if not hitboxes: return
+                # Only trigger on the first frame of the attack animation
+                if self.frame_idx == tr[0] and getattr(self, 'last_shot_frame', -1) != self.frame_idx:
+                    self.last_shot_frame = self.frame_idx
+                    if getattr(self, 'is_ranged_combo', False) and "attack" in slot_l:
+                        proj_vx = 15 if self.facing_right else -15
+                        px, py = shoot_pt if shoot_pt else (self.x + (20 if self.facing_right else -20), self.y - 30)
+                        ptag = next((t for t in src.tags.keys() if "projectile" in t.lower() or "shoot" in t.lower()), None)
+                        self.projectiles.append(Projectile(self, px, py, proj_vx, 0, self.active_tag_info[0] if ptag else None, ptag))
+                        self.play_sound('dash')
+                    elif not has_hit_slice:
+                        hw, hh = 60, 50
+                        ox = 10 if self.facing_right else -10 - hw
+                        hitboxes.append(pygame.Rect(self.x + ox, self.y - 50, hw, hh))
 
         for ai in self.ai_list[:] + getattr(self, 'prop_list', [])[:]:
-            if ai.hit_cooldown <= 0 and ai.visible and not ai.is_dead:
+            if getattr(ai, 'last_hit_frame_idx', -1) != self.frame_idx and ai.visible and not ai.is_dead:
                 ai_rect = pygame.Rect(ai.x - 20, ai.y - 60, 40, 60) # Default approximate hurtbox
                 for hb in hitboxes:
                     if hb.colliderect(ai_rect):
                         dmg = random.randint(1, 3)
-                        ai.hp -= dmg; ai.hit_cooldown = 150
+                        ai.hp -= dmg; ai.last_hit_frame_idx = self.frame_idx
                         
                         # Add floating damage number
                         self.damage_numbers.append({'val': dmg, 'x': ai.x + random.uniform(-10, 10), 'y': ai.y - 60, 'lifetime': 1000, 'max_life': 1000, 'vy': -2})
                         
                         if self.shake_enabled: self.shake_timer = 10; self.shake_intensity = 5
                         self.hitstop_timer = 60 # 60ms Hit-stop for impact
+                        self.play_sound('hit')
                         
                         # Knockback (only for NPCs, not props)
                         if not getattr(ai, 'is_prop', False):
@@ -764,123 +939,13 @@ class AsepritePlayer:
                                         ai.prop_state = 3 # Fast-forward to total destruction
                                 
                                 if ai.prop_state >= 3:
-                                    ai.is_dead = True
-                                    # --- Prop Destruction Logic ---
-                                    # Generate precise debris from the "Parts" tag and its internal Slices
-                                    debris_created = False
-                                    if ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
-                                        prop_src = self.sources[ai.profile.source_idx]
-                                        # Look for a tag named 'Parts' (case-insensitive)
-                                        parts_tag = next((t for t in prop_src.tags.keys() if "parts" in t.lower()), None)
-                                        if parts_tag:
-                                            p_frame = prop_src.tags[parts_tag][0]
-                                            full_frame_img = prop_src.get_frame(p_frame, 1.0, True) # Unscaled original frame
-                                            if full_frame_img:
-                                                for s_name, s_keys in prop_src.slices.items():
-                                                    active_key = None
-                                                    for key in s_keys:
-                                                        if key['frame'] <= p_frame:
-                                                            if active_key is None or key['frame'] > active_key['frame']:
-                                                                active_key = key
-                                                    if active_key:
-                                                        b = active_key['bounds']
-                                                        try:
-                                                            # Crop the exact slice area from the Aseprite canvas
-                                                            cropped = pygame.Surface((b['w'], b['h']), pygame.SRCALPHA)
-                                                            f_info = prop_src.frames[p_frame]
-                                                            crop_x = b['x'] - prop_src.orig_w // 2 - f_info['ox']
-                                                            crop_y = b['y'] - prop_src.orig_h // 2 - f_info['oy']
-                                                            cropped.blit(full_frame_img, (-crop_x, -crop_y))
-                                                            
-                                                            # Calculate precise spawn location of the debris in the game world 
-                                                            # based on the slice's visual offset from the prop's center pivot
-                                                            if ai.facing_right:
-                                                                px = ai.x + (b['x'] - prop_src.orig_w // 2) + b['w'] / 2
-                                                            else:
-                                                                px = ai.x - (b['x'] - prop_src.orig_w // 2 + b['w']) + b['w'] / 2
-                                                            py = ai.y + (b['y'] - prop_src.orig_h // 2) + b['h'] / 2
-                                                            
-                                                            self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), 10, 10000, image=cropped))
-                                                            debris_created = True
-                                                        except Exception as e:
-                                                            log_debug(f"Failed to crop prop slice: {e}")
-                                    
-                                    # Fallback: Auto-slice the current frame into a 3x3 grid if no Parts tag exists
-                                    if not debris_created and ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
-                                        prop_src = self.sources[ai.profile.source_idx]
-                                        full_frame_img = prop_src.get_frame(ai.frame_idx, 1.0, ai.facing_right)
-                                        if full_frame_img:
-                                            w, h = full_frame_img.get_width(), full_frame_img.get_height()
-                                            cols, rows = 3, 3
-                                            cw, ch = w // cols, h // rows
-                                            if cw > 0 and ch > 0:
-                                                f_info = prop_src.frames[ai.frame_idx]
-                                                start_x = ai.x + f_info['ox'] if ai.facing_right else ai.x - f_info['ox'] - w
-                                                start_y = ai.y + f_info['oy']
-                                                
-                                                for row in range(rows):
-                                                    for col in range(cols):
-                                                        try:
-                                                            cropped = pygame.Surface((cw, ch), pygame.SRCALPHA)
-                                                            cropped.blit(full_frame_img, (-col * cw, -row * ch))
-                                                            
-                                                            # Skip completely empty/transparent chunks
-                                                            if not cropped.get_bounding_rect().width: continue
-                                                            
-                                                            px = start_x + col * cw + cw//2
-                                                            py = start_y + row * ch + ch//2
-                                                            
-                                                            self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), max(cw, ch), 10000, image=cropped))
-                                                            debris_created = True
-                                                        except Exception as e:
-                                                            log_debug(f"Auto-slice failed: {e}")
-                                    
-                                    # Ultimate Fallback: Just in case the image was too small to slice
-                                    if not debris_created:
-                                        for _ in range(15):
-                                            self.particles.append(Particle(ai.x, ai.y - 20, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (139, 69, 19), random.uniform(4, 8), random.randint(500, 1000)))
-                                    
-                                    if ai in getattr(self, 'prop_list', []): self.prop_list.remove(ai)
+                                    self.trigger_prop_death(ai)
                                 else:
                                     # Reset HP for the next stage (Break1 or Break2)
                                     ai.stage_hp = 3
                         else:
                             if ai.hp <= 0:
-                                ai.is_dead = True
-                                
-                                # NPC Auto-slice Destruction into 3x3 grid
-                                debris_created = False
-                                if ai.profile.source_idx >= 0 and ai.profile.source_idx < len(self.sources):
-                                    npc_src = self.sources[ai.profile.source_idx]
-                                    full_frame_img = npc_src.get_frame(ai.frame_idx, 1.0, ai.facing_right)
-                                    if full_frame_img:
-                                        w, h = full_frame_img.get_width(), full_frame_img.get_height()
-                                        cols, rows = 3, 3
-                                        cw, ch = w // cols, h // rows
-                                        if cw > 0 and ch > 0:
-                                            f_info = npc_src.frames[ai.frame_idx]
-                                            start_x = ai.x + f_info['ox'] if ai.facing_right else ai.x - f_info['ox'] - w
-                                            start_y = ai.y + f_info['oy']
-                                            
-                                            for row in range(rows):
-                                                for col in range(cols):
-                                                    try:
-                                                        cropped = pygame.Surface((cw, ch), pygame.SRCALPHA)
-                                                        cropped.blit(full_frame_img, (-col * cw, -row * ch))
-                                                        if not cropped.get_bounding_rect().width: continue
-                                                        px = start_x + col * cw + cw//2
-                                                        py = start_y + row * ch + ch//2
-                                                        self.particles.append(Particle(px, py, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 255), max(cw, ch), 5000, image=cropped)) # 5 seconds lifetime
-                                                        debris_created = True
-                                                    except: pass
-                                
-                                if not debris_created:
-                                    for _ in range(10):
-                                        self.particles.append(Particle(ai.x, ai.y - 20, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (220, 38, 38), random.uniform(4, 8), 5000))
-                                
-                                if ai in self.ai_list: 
-                                    self.ai_list.remove(ai)
-                                    self.target_ai_count = max(0, self.target_ai_count - 1)
+                                self.trigger_npc_death(ai)
                         break # Only hit once per attack frame
 
         # Check hits on interactive debris particles
@@ -899,6 +964,47 @@ class AsepritePlayer:
                     p.lifetime = min(p.max_life, p.lifetime + 2000) # Give it some extra life if kicked
                     p.hit_cooldown = 300 # Prevent multi-hits
                     break
+                    
+        # Check Projectile Hits
+        for proj in getattr(self, 'projectiles', []):
+            if not proj.active: continue
+            # Approximate projectile hitbox (e.g. 30x30)
+            proj_rect = pygame.Rect(proj.x - 15, proj.y - 15, 30, 30)
+            
+            for ai in self.ai_list[:] + getattr(self, 'prop_list', [])[:]:
+                if ai.hit_cooldown <= 0 and ai.visible and not ai.is_dead:
+                    ai_rect = pygame.Rect(ai.x - 20, ai.y - 60, 40, 60)
+                    if proj_rect.colliderect(ai_rect):
+                        dmg = random.randint(1, 3)
+                        ai.hp -= dmg; ai.hit_cooldown = 150
+                        self.damage_numbers.append({'val': dmg, 'x': ai.x + random.uniform(-10, 10), 'y': ai.y - 60, 'lifetime': 1000, 'max_life': 1000, 'vy': -2})
+                        
+                        if self.shake_enabled: self.shake_timer = 10; self.shake_intensity = 3
+                        
+                        # Generate Impact Sparks
+                        for _ in range(5):
+                            angle = random.uniform(math.pi*0.8, math.pi*1.2) if proj.vx > 0 else random.uniform(-math.pi*0.2, math.pi*0.2)
+                            self.sparks.append(Spark(ai.x, ai.y - 30, angle, random.uniform(20, 40), (255, 200, 50), random.uniform(15, 30), random.uniform(1, 2), 200))
+                            
+                        if getattr(ai, 'is_prop', False):
+                            ai.stage_hp -= 1
+                            if ai.stage_hp <= 0:
+                                ai.prop_state += 1
+                                if ai.prop_state < 3:
+                                    next_state_name = f"Break{ai.prop_state}"
+                                    if not ai.profile.mappings.get(next_state_name, []):
+                                        ai.prop_state = 3
+                                if ai.prop_state >= 3:
+                                    self.trigger_prop_death(ai)
+                                else:
+                                    ai.stage_hp = 3
+                        else:
+                            if ai.hp <= 0:
+                                self.trigger_npc_death(ai)
+                            
+                        proj.active = False
+                        proj.lifetime = 0
+                        break
 
     def update(self, keys, ground_y, dt):
         if hasattr(self, "_btn_lock"):
@@ -918,6 +1024,9 @@ class AsepritePlayer:
         for s in getattr(self, 'sparks', [])[:]:
             s.update(dt)
             if s.lifetime <= 0: self.sparks.remove(s)
+        for proj in getattr(self, 'projectiles', [])[:]:
+            proj.update(dt)
+            if proj.lifetime <= 0: self.projectiles.remove(proj)
             
         # Dash Dust
         if self.dash_timer > 0 and random.random() < 0.5:
@@ -969,6 +1078,9 @@ class AsepritePlayer:
             if self.dash_cooldowns[i] > 0:
                 self.dash_cooldowns[i] -= dt
                 if self.dash_cooldowns[i] <= 0: self.dash_charges = min(2, self.dash_charges + 1)
+        for i in range(3):
+            if self.skill_cooldowns[i] > 0:
+                self.skill_cooldowns[i] = max(0, self.skill_cooldowns[i] - dt)
         if self.pbomb_pause_timer > 0:
             self.pbomb_pause_timer -= dt; self.vy = 0
             if self.pbomb_pause_timer <= 0: self.vy = self.powerbomb_speed; self.pbomb_pause_timer = 0
@@ -1262,15 +1374,26 @@ class AsepritePlayer:
             adx, ady = (ai.x-cam_x)*self.zoom, (ai.y-cam_y)*self.zoom
             if abs(adx)>play_w//2 or abs(ady)>play_h//2: ang = math.atan2(ady, adx); px, py = cx+math.cos(ang)*(play_w//2-40), cy+math.sin(ang)*(play_h//2-40); pygame.draw.circle(screen, (220,38,38), (int(px), int(py)), 12); pygame.draw.line(screen, (255,255,255), (px, py), (px-math.cos(ang)*8, py-math.sin(ang)*8), 2)
             
+        # Draw Projectiles
+        for proj in getattr(self, 'projectiles', []):
+            if proj.active:
+                if proj.source_idx is not None and proj.source_idx >= 0 and proj.source_idx < len(self.sources):
+                    self.draw_sprite(screen, proj.x, proj.y, proj.source_idx, proj.frame_idx, proj.facing_right, cam_x, cam_y, cx, cy)
+                else:
+                    px = int(cx + (proj.x - cam_x) * self.zoom)
+                    py = int(cy + (proj.y - cam_y) * self.zoom)
+                    pygame.draw.circle(screen, (59, 130, 246), (px, py), int(15 * self.zoom))
+                    pygame.draw.circle(screen, (255, 255, 255), (px, py), int(8 * self.zoom))
+
         # Draw Floating Damage Numbers
         for dmg in getattr(self, 'damage_numbers', []):
             dx = int(cx + (dmg['x'] - cam_x) * self.zoom)
             dy = int(cy + (dmg['y'] - cam_y) * self.zoom)
-            if dx > 0 and dx < play_w and dy > 0 and dy < play_h and getattr(self, 'font_b', None):
+            if dx > 0 and dx < play_w and dy > 0 and dy < play_h and getattr(self, 'font_dmg', None):
                 alpha = int(255 * (dmg['lifetime'] / dmg['max_life']))
-                txt_surf = self.font_b.render(str(dmg['val']), True, (255, 255, 255))
+                txt_surf = self.font_dmg.render(str(dmg['val']), True, (255, 255, 255))
                 # Outline
-                bg_surf = self.font_b.render(str(dmg['val']), True, (0, 0, 0))
+                bg_surf = self.font_dmg.render(str(dmg['val']), True, (0, 0, 0))
                 # Apply alpha hack
                 temp_surf = pygame.Surface((txt_surf.get_width()+2, txt_surf.get_height()+2), pygame.SRCALPHA)
                 for ox, oy in [(-1,-1), (-1,1), (1,-1), (1,1), (0,-1), (-1,0), (1,0), (0,1)]: temp_surf.blit(bg_surf, (ox+1, oy+1))
@@ -1316,13 +1439,43 @@ class AsepritePlayer:
                     if px > end_x: lx, ex = ex, lx
                     if py > end_y: ly, ey = ey, ly
                     pygame.draw.line(surf, (*s.color, alpha), (lx, ly), (ex, ey), width)
-                    screen.blit(surf, (min(px, end_x) - width, min(py, end_y) - width))
+                    screen.blit(surf, (min(px, end_x) - width, min(py, end_y) - width), special_flags=pygame.BLEND_RGB_ADD)
                 
-        if self.show_viewport:
-            vw, vh = self.target_w * self.zoom, self.target_h * self.zoom; vr = pygame.Rect(cx - vw//2, cy - vh//2, vw, vh)
+        if getattr(self, 'show_viewport', True):
+            vw, vh = getattr(self, 'target_w', 640) * self.zoom, getattr(self, 'target_h', 360) * self.zoom; vr = pygame.Rect(cx - vw//2, cy - vh//2, vw, vh)
             overlay = self.get_viewport_overlay(play_w, play_h, vr)
             screen.blit(overlay, (0, 0)); pygame.draw.rect(screen, (255, 255, 255), vr, 1)
             if getattr(self, 'font_12', None): screen.blit(self.font_12.render(f"Viewport: {self.target_w}x{self.target_h} (16:9)", True, (255,255,255)), (vr.x, vr.y - 18))
+            
+        # Draw HUD (Bottom Left)
+        hud_y = play_h - 80
+        # HP Bar
+        pygame.draw.rect(screen, (40, 40, 45), (20, hud_y, 200, 20), border_radius=4)
+        hp_pct = max(0, getattr(self, 'hp', 100) / getattr(self, 'max_hp', 100))
+        pygame.draw.rect(screen, (220, 38, 38), (20, hud_y, int(200 * hp_pct), 20), border_radius=4)
+        pygame.draw.rect(screen, (255, 255, 255), (20, hud_y, 200, 20), 2, border_radius=4)
+        if getattr(self, 'font_b', None): screen.blit(self.font_b.render(f"HP {int(getattr(self, 'hp', 100))}/{getattr(self, 'max_hp', 100)}", True, (255,255,255)), (28, hud_y+2))
+        
+        # Dash Charges
+        for i in range(2):
+            col = (59, 130, 246) if i < getattr(self, 'dash_charges', 2) else (60, 60, 70)
+            pygame.draw.rect(screen, col, (20 + i*40, hud_y + 25, 35, 10), border_radius=2)
+            
+        # Skill Cooldowns
+        for i in range(3):
+            cd = getattr(self, 'skill_cooldowns', [0,0,0])[i]
+            sx = 230 + i * 50
+            pygame.draw.rect(screen, (50, 50, 60), (sx, hud_y - 15, 40, 40), border_radius=6)
+            if cd > 0:
+                overlay_h = int(40 * (cd / 3000.0))
+                pygame.draw.rect(screen, (0, 0, 0, 150), (sx, hud_y - 15 + (40 - overlay_h), 40, overlay_h), border_radius=6)
+                if getattr(self, 'font_b', None):
+                    cd_txt = self.font_b.render(f"{cd/1000.0:.1f}", True, (255, 255, 255))
+                    screen.blit(cd_txt, (sx + 20 - cd_txt.get_width()//2, hud_y - 5))
+            else:
+                pygame.draw.rect(screen, (22, 163, 74), (sx, hud_y - 15, 40, 40), 2, border_radius=6)
+            if getattr(self, 'font_10', None):
+                screen.blit(self.font_10.render(f"S{i+1}", True, (200,200,200)), (sx+12, hud_y+27))
         
         # Popup Overlay Draw
         if self.popup:
@@ -1345,7 +1498,7 @@ class AsepritePlayer:
             screen.blit(font_b.render("NO", True, (255,255,255)), (no_btn.x+20, no_btn.y+5))
 
 def main():
-    pygame.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE | pygame.DOUBLEBUF | pygame.HWSURFACE, vsync=1); clock = pygame.time.Clock(); player = AsepritePlayer(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = CachedFont(pygame.font.SysFont("Arial", 12)); font_b = CachedFont(pygame.font.SysFont("Arial", 14, bold=True)); font_h = CachedFont(pygame.font.SysFont("Arial", 11)); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PROPS": True, "PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "CAMERA": True, "BG IMAGE": True, "BG COLOR": True, "CONTROLS": False}
+    pygame.init(); pygame.mixer.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE | pygame.DOUBLEBUF | pygame.HWSURFACE, vsync=1); clock = pygame.time.Clock(); player = AsepritePlayer(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = CachedFont(pygame.font.SysFont("Arial", 12)); font_b = CachedFont(pygame.font.SysFont("Arial", 14, bold=True)); font_h = CachedFont(pygame.font.SysFont("Arial", 11)); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PROPS": True, "PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "CAMERA": True, "BG IMAGE": True, "BG COLOR": True, "CONTROLS": False}
     binding_key = None; active_input_attr = None; input_text = ""
     while True:
         raw_dt = clock.tick(60)
@@ -1655,7 +1808,7 @@ def main():
                                                 cy += 35
                                             cy += 10
                                         elif cat == "PHYSICS": cy += 185
-                                        elif cat == "AI & COMBAT": cy += 165 + max(0, ((len(player.profiles)-2)//4)*30)
+                                        elif cat == "AI & COMBAT": cy += 205 + max(0, ((len(player.profiles)-2)//4)*30)
                                         elif cat == "JUICE & VFX": cy += 175
                                         elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                         elif cat == "CAMERA": cy += 85
@@ -1742,7 +1895,7 @@ def main():
                                                 cy += 35
                                             cy += 10
                                         elif cat == "PHYSICS": cy += 185
-                                        elif cat == "AI & COMBAT": cy += 165 + max(0, ((len(player.profiles)-2)//4)*30)
+                                        elif cat == "AI & COMBAT": cy += 205 + max(0, ((len(player.profiles)-2)//4)*30)
                                         elif cat == "JUICE & VFX": cy += 175
                                         elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                         elif cat == "CAMERA": cy += 85
@@ -1841,7 +1994,7 @@ def main():
                             if folds[cat]:
                                 if cat == "PROPS": calc_h += len([s for s in player.sources if getattr(s, 'is_prop_source', False)]) * 35 + 10
                                 elif cat == "PHYSICS": calc_h += 185
-                                elif cat == "AI & COMBAT": calc_h += 165 + max(0, ((len(player.profiles)-2)//4)*30)
+                                elif cat == "AI & COMBAT": calc_h += 205 + max(0, ((len(player.profiles)-2)//4)*30)
                                 elif cat == "JUICE & VFX": calc_h += 175
                                 elif cat == "LAYERS" and player.sources: calc_h += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                 elif cat == "CAMERA": calc_h += 85
@@ -1942,6 +2095,14 @@ def main():
                                         setattr(player, at, mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn) if at not in ["target_ai_count", "npc_max_hp"] else int(mn+(m_pos[0]-(play_w+110))/(sidebar_w-160)*(mx-mn))); player.save_settings()
                             
                             y = cy + 135
+                            set_surf.blit(font_s.render("Ranged Combo", True, (150,150,150)), (20, y))
+                            btn = pygame.Rect(sidebar_w-60, y-5, 40, 20); val = getattr(player, 'is_ranged_combo', False)
+                            pygame.draw.rect(set_surf, (22, 163, 74) if val else (220, 38, 38), btn, border_radius=10)
+                            pygame.draw.circle(set_surf, (255,255,255), (btn.x+30 if val else btn.x+10, btn.y+10), 8)
+                            if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+btn.x, y-5, btn.w, btn.h).collidepoint(m_pos):
+                                if not hasattr(player, "_btn_lock"): setattr(player, 'is_ranged_combo', not val); player._btn_lock = 10; player.save_settings()
+
+                            y = cy + 175
                             set_surf.blit(font_s.render("Swap Target:", True, (150,150,150)), (20, y))
                             j_offset = 0
                             for j in range(1, len(player.profiles)):
@@ -1953,7 +2114,7 @@ def main():
                                 if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+btn.x, btn.y, btn.w, btn.h).collidepoint(m_pos):
                                     player.swap_target_idx = j; player.save_settings()
                                 j_offset += 1
-                            cy += 165 + max(0, ((len(player.profiles)-2)//4)*30)
+                            cy += 205 + max(0, ((len(player.profiles)-2)//4)*30)
                         elif cat == "JUICE & VFX":
                             for i, (l, at) in enumerate([("Enable Shake", "shake_enabled"), ("Enable Ghost", "vfx_enabled")]):
                                 y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); btn = pygame.Rect(sidebar_w-60, y-5, 40, 20); val = getattr(player, at); pygame.draw.rect(set_surf, (22, 163, 74) if val else (220, 38, 38), btn, border_radius=10); pygame.draw.circle(set_surf, (255,255,255), (btn.x+30 if val else btn.x+10, btn.y+10), 8)
