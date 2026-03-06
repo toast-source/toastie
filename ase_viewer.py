@@ -214,7 +214,7 @@ class AseAI:
         self.spawn_y = master.y - 100
         self.x, self.y = self.spawn_x, self.spawn_y; self.vx = self.vy = 0; self.grounded = True; self.facing_right = random.choice([True, False]); self.frame_idx = 0; self.anim_timer = 0; self.active_tag_info = None; self.action_queue = []; self.action_end_frame = -1; self.ai_timer = random.randint(30, 90); self.decision = "IDLE"; self.swap_timer = 0; self.visible = True; self.active_action_slot = None
         self.is_temp = is_temp; self.attack_buffer = 0; self.combo_step = 0
-        self.is_prop = is_prop; self.hit_cooldown = 0; self.is_dead = False; self.last_hit_frame_idx = -1
+        self.is_prop = is_prop; self.hit_cooldown = 0; self.is_dead = False; self.last_hit_frame_idx = -1; self.pending_execution = 0
         if is_prop:
             self.prop_state = 0 # 0: IDLE, 1: Break1, 2: Break2
             self.stage_hp = 3
@@ -223,6 +223,8 @@ class AseAI:
             self.hp = getattr(master, 'npc_max_hp', 10) if hp == 1 else hp
             self.max_hp = self.hp
     def update(self, ground_y, dt):
+        if getattr(self, 'pending_execution', 0) > 0:
+            self.pending_execution -= dt
         if self.hit_cooldown > 0: self.hit_cooldown -= dt
         if self.swap_timer > 0:
             self.swap_timer -= dt
@@ -236,13 +238,8 @@ class AseAI:
                 choices = ["IDLE", "CHASE", "ATTACK", "DASH", "JUMP", "SWAP"] if abs(dist_p) < 600 else ["IDLE", "WALK_L", "WALK_R"]
                 self.decision = random.choice(choices); self.ai_timer = random.randint(40, 120)
                 if self.decision == "SWAP":
-                    # Teleport near player instead of disappearing
-                    self.x = self.master.x + random.choice([-150, 150])
-                    self.y = self.master.y - 50
-                    self.vy = 0
-                    # Spawn teleport dust
-                    for _ in range(5):
-                        self.master.particles.append(Particle(self.x + random.uniform(-10, 10), self.y, random.uniform(-2, 2), random.uniform(-5, -1), (150, 150, 150), random.uniform(8, 15), 400))
+                    # Trigger Swap_Exit first, then teleport and enter when it finishes
+                    self.trigger_action("Swap_Exit")
                 elif self.decision == "ATTACK" and abs(dist_p) < 200: self.facing_right = dist_p > 0; self.trigger_action(f"ComboAttack_{random.randint(1,4)}")
                 elif self.decision == "DASH": self.facing_right = dist_p > 0; self.trigger_action("DASH")
                 elif self.decision == "JUMP" and self.grounded: self.vy = self.master.jump_power; self.grounded = False
@@ -288,7 +285,7 @@ class AseAI:
                     if self.anim_timer >= dur:
                         self.frame_idx += 1; self.anim_timer = 0
                         if self.active_tag_info and self.frame_idx > self.action_end_frame:
-                            if target_info[1] == "Swap_Exit": self.visible = False; self.active_tag_info = None; self.active_action_slot = None; return
+                            if target_info[1] == "Swap_Exit" and not self.action_queue: self.visible = False; self.swap_timer = 500; self.active_tag_info = None; self.active_action_slot = None; return
                             if "(loop)" in target_info[1].lower(): self.frame_idx = tr[0]
                             elif self.is_temp and not self.action_queue:
                                 if getattr(self, 'attack_buffer', 0) > 0:
@@ -311,6 +308,7 @@ class AseAI:
     def trigger_action(self, slot):
         tags = self.profile.mappings.get(slot, [])
         if tags:
+            log_debug(f"[AI] Triggering {slot} -> Tags: {tags}")
             self.active_action_slot = slot; self.action_queue = list(tags); self.active_tag_info = self.action_queue.pop(0)
             if self.active_tag_info[0] >= 0 and self.active_tag_info[0] < len(self.master.sources):
                 src = self.master.sources[self.active_tag_info[0]]; self.frame_idx, self.action_end_frame = src.tags.get(self.active_tag_info[1], (0,0)); self.anim_timer = 0
@@ -335,7 +333,7 @@ class AsepritePlayer:
             self.font_dmg = CachedFont(pygame.font.SysFont("Arial", 28, bold=True)) # Larger font for damage
         else:
             self.font_10 = None; self.font_12 = None; self.font_b = None; self.font_dmg = None
-        self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "HURT": pygame.K_v}
+        self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "SYNERGY": pygame.K_e, "HURT": pygame.K_v}
         self.popup = None
         self.sounds = {}
         if pygame.mixer.get_init():
@@ -369,7 +367,7 @@ class AsepritePlayer:
         except: pass
     def load_settings(self):
         if not hasattr(self, "key_map"):
-            self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "HURT": pygame.K_v}
+            self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "SYNERGY": pygame.K_e, "HURT": pygame.K_v}
         self.popup = None # {'msg': str, 'cb': func}
         if os.path.exists("ase_settings.json"):
             try:
@@ -692,6 +690,13 @@ class AsepritePlayer:
         # Swap profiles array
         self.profiles[0], self.profiles[target_idx] = target_p, self.profiles[0]
         
+        # Keep roaming target assigned to the exact same profile if it was swapped
+        roam_idx = getattr(self, 'roaming_npc_idx', 1 if len(self.profiles) > 1 else 0)
+        if roam_idx == target_idx:
+            self.roaming_npc_idx = 0
+        elif roam_idx == 0:
+            self.roaming_npc_idx = target_idx
+        
         # Setup new player position (Behind the exiting character)
         offset = -40 if temp_ai.facing_right else 40
         self.x = temp_ai.x + offset
@@ -714,6 +719,20 @@ class AsepritePlayer:
     def trigger_npc_death(self, ai):
         if ai.is_dead: return
         ai.is_dead = True
+        
+        # Check if this was a delayed synergy execution
+        is_execution = getattr(ai, 'pending_execution', 0) > 0
+        if is_execution:
+            # Massive VFX on Impact
+            if self.shake_enabled:
+                self.shake_timer = 30
+                self.shake_intensity = 15
+                
+            for _ in range(15):
+                self.particles.append(Particle(ai.x, ai.y - 30, random.uniform(-15, 15)*self.debris_force, random.uniform(-20, -5)*self.debris_force, (255, 255, 0), random.uniform(4, 10), 1000))
+            for _ in range(10):
+                angle = random.uniform(0, math.pi * 2)
+                self.sparks.append(Spark(ai.x, ai.y - 30, angle, random.uniform(30, 60), (255, 255, 255), random.uniform(40, 80), random.uniform(2, 4), 400))
         
         # NPC Auto-slice Destruction into 3x3 grid
         debris_created = False
@@ -748,6 +767,86 @@ class AsepritePlayer:
         if ai in self.ai_list: 
             self.ai_list.remove(ai)
             self.target_ai_count = max(0, self.target_ai_count - 1)
+
+    def trigger_synergy_attack(self):
+        if getattr(self, 'synergy_cooldown', 0) > 0 or len(self.profiles) <= 1: return
+        
+        # Find a target NPC that is alive, within range, and has <= 25% max_hp
+        target_ai = None
+        for ai in self.ai_list:
+            if not getattr(ai, 'is_prop', False) and not ai.is_dead and ai.visible:
+                max_hp = getattr(ai, 'max_hp', 10)
+                if ai.hp <= max_hp * 0.25:
+                    dist_x = abs(self.x - ai.x)
+                    dist_y = abs(self.y - ai.y)
+                    # Increased range for easier execution
+                    if dist_x < 500 and dist_y < 200:
+                        target_ai = ai
+                        break
+                        
+        if not target_ai: return # No suitable target found
+        
+        self.synergy_cooldown = 5000 # 5 seconds cooldown
+        self.synergy_vfx_timer = 1000 # 1 second of cinematic slow-mo and darkening
+        
+        # Turn player towards the target
+        self.facing_right = self.x < target_ai.x
+        
+        # 1. Player triggers SKILL 1 or ComboAttack_1
+        p_prof = self.profiles[0]
+        if p_prof.mappings.get("SKILL 1"):
+            self.trigger_action("SKILL 1")
+        elif p_prof.mappings.get("ComboAttack_1"):
+            self.trigger_action("ComboAttack_1")
+            
+        # 2. Spawn Assist AI (Temporary)
+        assist_idx = getattr(self, 'swap_target_idx', 0)
+        if assist_idx == 0 or assist_idx >= len(self.profiles): assist_idx = 1
+        target_p = self.profiles[assist_idx]
+        
+        assist_ai = AseAI(self, target_p, is_temp=True)
+        
+        # Position the assist AI on the opposite side of the NPC
+        offset = 60
+        if self.x < target_ai.x:
+            assist_ai.x = target_ai.x + offset
+            assist_ai.facing_right = False
+        else:
+            assist_ai.x = target_ai.x - offset
+            assist_ai.facing_right = True
+            
+        assist_ai.y = self.y # Match player's Y level
+        
+        skill_slot = "SKILL 1" if target_p.mappings.get("SKILL 1") else "ComboAttack_1"
+        tags_enter = list(target_p.mappings.get("Swap_Enter", []))
+        tags_skill = list(target_p.mappings.get(skill_slot, []))
+        
+        assist_ai.active_action_slot = skill_slot
+        
+        # Determine the total duration of the player's attack to sync the assist AI
+        player_attack_duration = 0
+        if p_prof.mappings.get(skill_slot):
+            p_src = self.sources[0]
+            for tag_info in p_prof.mappings.get(skill_slot):
+                f_start, f_end = p_src.tags.get(tag_info[1], (0, 0))
+                for f in range(f_start, f_end + 1):
+                    if f < len(p_src.frames): player_attack_duration += p_src.frames[f]['duration']
+        
+        assist_ai.action_queue = tags_enter + tags_skill
+        if assist_ai.action_queue:
+            assist_ai.active_tag_info = assist_ai.action_queue.pop(0)
+            if assist_ai.active_tag_info[0] >= 0 and assist_ai.active_tag_info[0] < len(self.sources):
+                src = self.sources[assist_ai.active_tag_info[0]]
+                assist_ai.frame_idx, assist_ai.action_end_frame = src.tags.get(assist_ai.active_tag_info[1], (0,0))
+                assist_ai.anim_timer = 0
+                
+        # Make assist AI invincible to hitstop during this intro phase so they don't fall behind
+        assist_ai.synergy_invulnerable = True
+        
+        self.temp_ai_list.append(assist_ai)
+        
+        # Mark NPC for delayed execution on the next hit
+        target_ai.pending_execution = 2000
 
     def trigger_prop_death(self, ai):
         if ai.is_dead: return
@@ -865,6 +964,11 @@ class AsepritePlayer:
                         self.play_sound('dash')
                     elif not has_hit_slice:
                         hw, hh = 60, 50
+                        # Enlarge hitbox significantly if this is a synergy attack
+                        if "skill" in slot_l and getattr(self, 'synergy_vfx_timer', 0) > 0:
+                            hw, hh = 150, 100
+                            self.vx = 20 if self.facing_right else -20
+                            
                         ox = 10 if self.facing_right else -10 - hw
                         hitboxes.append(pygame.Rect(self.x + ox, self.y - 50, hw, hh))
 
@@ -944,7 +1048,7 @@ class AsepritePlayer:
                                     # Reset HP for the next stage (Break1 or Break2)
                                     ai.stage_hp = 3
                         else:
-                            if ai.hp <= 0:
+                            if ai.hp <= 0 or getattr(ai, 'pending_execution', 0) > 0:
                                 self.trigger_npc_death(ai)
                         break # Only hit once per attack frame
 
@@ -1007,13 +1111,23 @@ class AsepritePlayer:
                         break
 
     def update(self, keys, ground_y, dt):
+        original_dt = dt
         if hasattr(self, "_btn_lock"):
             self._btn_lock -= 1
             if self._btn_lock <= 0: delattr(self, "_btn_lock")
             
+        if getattr(self, 'synergy_cooldown', 0) > 0:
+            self.synergy_cooldown -= original_dt
+            
+        if getattr(self, 'synergy_vfx_timer', 0) > 0:
+            self.synergy_vfx_timer -= original_dt
+            dt = dt * 0.3 # 30% speed for cinematic slow-mo
+            
         if getattr(self, 'hitstop_timer', 0) > 0:
-            self.hitstop_timer -= dt
-            dt = dt * 0.1 # Slow down time by 90% during hitstop for impact effect
+            self.hitstop_timer -= original_dt
+            dt = dt * getattr(self, 'hitstop_slow_factor', 0.1) # Variable slow down
+        else:
+            self.hitstop_slow_factor = 0.1
             
         self.check_hits()
         
@@ -1041,7 +1155,8 @@ class AsepritePlayer:
                 dmg['y'] += dmg['vy'] * (dt/16.6)
             
         while len(self.ai_list) < self.target_ai_count:
-            if len(self.profiles) > 1: self.ai_list.append(AseAI(self, self.profiles[1]))
+            roam_idx = getattr(self, 'roaming_npc_idx', 1 if len(self.profiles) > 1 else 0)
+            if roam_idx < len(self.profiles): self.ai_list.append(AseAI(self, self.profiles[roam_idx]))
             elif self.profiles: self.ai_list.append(AseAI(self, self.profiles[0]))
             else: break
         while len(self.ai_list) > self.target_ai_count: self.ai_list.pop()
@@ -1172,7 +1287,10 @@ class AsepritePlayer:
         for ai in self.ai_list: ai.update(ground_y, dt)
         for prop in getattr(self, 'prop_list', []): prop.update(ground_y, dt)
         for ai in getattr(self, 'temp_ai_list', [])[:]:
-            ai.update(ground_y, dt)
+            use_dt = dt
+            if getattr(ai, 'synergy_invulnerable', False) and ai.active_tag_info and "enter" in ai.active_tag_info[1].lower():
+                use_dt = original_dt
+            ai.update(ground_y, use_dt)
             if not ai.visible: self.temp_ai_list.remove(ai)
 
     def draw_sprite(self, screen, x, y, source_idx, f_idx, facing_right, cam_x, cam_y, cx, cy, entity=None):
@@ -1317,6 +1435,14 @@ class AsepritePlayer:
                 screen.blit(pr_surf, (px, py))
         
         pygame.draw.line(screen, (100,100,100), (int(cx+(0-cam_x)*self.zoom), int(cy+(500-cam_y)*self.zoom)), (int(cx+(5000-cam_x)*self.zoom), int(cy+(500-cam_y)*self.zoom)), 2)
+        
+        # Cinematic Lighting Effect for Synergy Attack
+        if getattr(self, 'synergy_vfx_timer', 0) > 0:
+            alpha = min(180, int((self.synergy_vfx_timer / 1000.0) * 180))
+            if alpha > 0:
+                dark_overlay = self.get_overlay(play_w, play_h, (10, 10, 20, alpha))
+                screen.blit(dark_overlay, (0, 0))
+                
         if self.vfx_enabled:
             for ai in self.afterimages:
                 src = self.sources[ai['s']]; sc = src.get_frame(ai['f'], self.zoom, ai['right'])
@@ -1488,15 +1614,17 @@ class AsepritePlayer:
             
             # Use globally available font_b and font_s from main() scoping or just assume they exist
             # Note: since font_b is built in main(), drawing it here will just access it globally.
-            screen.blit(font_b.render("Confirm Action", True, (255, 255, 255)), (cx-50, cy-50))
-            screen.blit(font_s.render(self.popup['msg'], True, (200, 200, 200)), (cx-len(self.popup['msg'])*3, cy-20))
-            
+            if hasattr(self, 'font_b') and self.font_b:
+                screen.blit(self.font_b.render("Confirm Action", True, (255, 255, 255)), (cx-50, cy-50))
+            if hasattr(self, 'font_12') and self.font_12:
+                screen.blit(self.font_12.render(self.popup['msg'], True, (200, 200, 200)), (cx-len(self.popup['msg'])*3, cy-20))
+
             yes_btn = pygame.Rect(cx-80, cy+20, 60, 30); no_btn = pygame.Rect(cx+20, cy+20, 60, 30)
             pygame.draw.rect(screen, (59, 130, 246), yes_btn, border_radius=5)
             pygame.draw.rect(screen, (220, 38, 38), no_btn, border_radius=5)
-            screen.blit(font_b.render("YES", True, (255,255,255)), (yes_btn.x+15, yes_btn.y+5))
-            screen.blit(font_b.render("NO", True, (255,255,255)), (no_btn.x+20, no_btn.y+5))
-
+            if hasattr(self, 'font_b') and self.font_b:
+                screen.blit(self.font_b.render("YES", True, (255,255,255)), (yes_btn.x+15, yes_btn.y+5))
+                screen.blit(self.font_b.render("NO", True, (255,255,255)), (no_btn.x+20, no_btn.y+5))
 def main():
     pygame.init(); pygame.mixer.init(); screen = pygame.display.set_mode((1350, 850), pygame.RESIZABLE | pygame.DOUBLEBUF | pygame.HWSURFACE, vsync=1); clock = pygame.time.Clock(); player = AsepritePlayer(); show_settings = False; slot_scroll = tag_scroll = settings_scroll = 0; font_s = CachedFont(pygame.font.SysFont("Arial", 12)); font_b = CachedFont(pygame.font.SysFont("Arial", 14, bold=True)); font_h = CachedFont(pygame.font.SysFont("Arial", 11)); is_dragging_cam = False; last_m_pos = (0,0); selected_slot = None; folds = {"PROPS": True, "PHYSICS": True, "AI & COMBAT": True, "JUICE & VFX": True, "LAYERS": True, "CAMERA": True, "BG IMAGE": True, "BG COLOR": True, "CONTROLS": False}
     binding_key = None; active_input_attr = None; input_text = ""
@@ -1509,12 +1637,12 @@ def main():
         screen.set_clip(pygame.Rect(0, 70, play_w, play_h))
         screen.fill(player.bg_color)
         
+        # Draw main game area
         if player: player.update(pygame.key.get_pressed(), 500, dt); player.draw(screen, play_w, play_h)
-        
+
         # Reset clip for UI
         screen.set_clip(None)
-        pygame.draw.rect(screen, (25, 25, 30), (play_w, 0, sidebar_w, sh)); pygame.draw.rect(screen, (35, 35, 40), (0, 0, play_w, 70))
-        
+        pygame.draw.rect(screen, (25, 25, 30), (play_w, 0, sidebar_w, sh)); pygame.draw.rect(screen, (35, 35, 40), (0, 0, play_w, 70))        
         # --- TOP UI ROW 1 (Project & Files) ---
         # Group 1: File Management
         new_proj = pygame.Rect(10, 5, 60, 28); pygame.draw.rect(screen, (220, 38, 38), new_proj, border_radius=5); screen.blit(font_b.render("NEW", True, (255,255,255)), (new_proj.x+12, 10))
@@ -1579,22 +1707,10 @@ def main():
                 else: sid = player.add_source(event.file); player.add_profile(f"NPC_{len(player.profiles)}", sid, is_npc=True)
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if player.popup:
-                    # Popup Handling (Yes/No)
-                    msg_w, msg_h = 300, 150; cx, cy = screen.get_width()//2, screen.get_height()//2
-                    overlay = pygame.Surface((screen.get_width(), screen.get_height()), pygame.SRCALPHA)
-                    overlay.fill((0, 0, 0, 128)); screen.blit(overlay, (0, 0))
-                    
-                    pygame.draw.rect(screen, (40, 40, 45), (cx-msg_w//2, cy-msg_h//2, msg_w, msg_h), border_radius=10)
-                    pygame.draw.rect(screen, (60, 60, 65), (cx-msg_w//2, cy-msg_h//2, msg_w, msg_h), 2, border_radius=10)
-                    
-                    screen.blit(font_b.render("Confirm Action", True, (255, 255, 255)), (cx-50, cy-50))
-                    screen.blit(font_s.render(player.popup['msg'], True, (200, 200, 200)), (cx-len(player.popup['msg'])*3, cy-20))
-                    
-                    yes_btn = pygame.Rect(cx-80, cy+20, 60, 30); no_btn = pygame.Rect(cx+20, cy+20, 60, 30)
-                    pygame.draw.rect(screen, (59, 130, 246), yes_btn, border_radius=5)
-                    pygame.draw.rect(screen, (220, 38, 38), no_btn, border_radius=5)
-                    screen.blit(font_b.render("YES", True, (255,255,255)), (yes_btn.x+15, yes_btn.y+5))
-                    screen.blit(font_b.render("NO", True, (255,255,255)), (no_btn.x+20, no_btn.y+5))
+                    # Popup Handling (Yes/No) Collision only
+                    cx, cy = screen.get_width()//2, screen.get_height()//2
+                    yes_btn = pygame.Rect(cx-80, cy+20, 60, 30)
+                    no_btn = pygame.Rect(cx+20, cy+20, 60, 30)
                     
                     if yes_btn.collidepoint(m_pos):
                         if player.popup['cb']: player.popup['cb']()
@@ -1808,7 +1924,7 @@ def main():
                                                 cy += 35
                                             cy += 10
                                         elif cat == "PHYSICS": cy += 185
-                                        elif cat == "AI & COMBAT": cy += 205 + max(0, ((len(player.profiles)-2)//4)*30)
+                                        elif cat == "AI & COMBAT": cy += 245 + max(0, ((len(player.profiles)-2)//4)*30)*2
                                         elif cat == "JUICE & VFX": cy += 175
                                         elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                         elif cat == "CAMERA": cy += 85
@@ -1895,7 +2011,7 @@ def main():
                                                 cy += 35
                                             cy += 10
                                         elif cat == "PHYSICS": cy += 185
-                                        elif cat == "AI & COMBAT": cy += 205 + max(0, ((len(player.profiles)-2)//4)*30)
+                                        elif cat == "AI & COMBAT": cy += 245 + max(0, ((len(player.profiles)-2)//4)*30)*2
                                         elif cat == "JUICE & VFX": cy += 175
                                         elif cat == "LAYERS" and player.sources: cy += 28 * len(player.sources[min(player.cur_source_idx, len(player.sources)-1)].layers) + 10
                                         elif cat == "CAMERA": cy += 85
@@ -1972,6 +2088,7 @@ def main():
                     elif k == km.get("SKILL2"): player.trigger_action("SKILL 2")
                     elif k == km.get("SKILL3"): player.trigger_action("SKILL 3")
                     elif k == km.get("HURT"): player.trigger_action("HURT")
+                    elif k == km.get("SYNERGY"): player.trigger_synergy_attack()
                     elif k == km.get("SWAP"): 
                         if hasattr(player, 'execute_swap'): player.execute_swap()
                     elif k == pygame.K_f: player.cam_follow = True
@@ -2114,7 +2231,21 @@ def main():
                                 if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+btn.x, btn.y, btn.w, btn.h).collidepoint(m_pos):
                                     player.swap_target_idx = j; player.save_settings()
                                 j_offset += 1
-                            cy += 205 + max(0, ((len(player.profiles)-2)//4)*30)
+                                
+                            y_roam = y + 35 + max(0, ((len(player.profiles)-2)//4)*30)
+                            set_surf.blit(font_s.render("Roaming Target:", True, (150,150,150)), (20, y_roam))
+                            j_offset_r = 0
+                            for j in range(1, len(player.profiles)):
+                                if getattr(player.profiles[j], 'is_prop_profile', False): continue
+                                btn = pygame.Rect(110 + (j_offset_r%4)*55, y_roam - 5 + (j_offset_r//4)*30, 50, 24)
+                                is_sel = getattr(player, 'roaming_npc_idx', 1) == j
+                                pygame.draw.rect(set_surf, (22,163,74) if is_sel else (60,60,70), btn, border_radius=4)
+                                set_surf.blit(font_h.render(f"NPC {j}", True, (255,255,255)), (btn.x+8, btn.y+5))
+                                if m_pos[1] > 70 and pygame.mouse.get_pressed()[0] and pygame.Rect(play_w+btn.x, btn.y, btn.w, btn.h).collidepoint(m_pos):
+                                    player.roaming_npc_idx = j; player.save_settings()
+                                j_offset_r += 1
+                                
+                            cy += 245 + max(0, ((len(player.profiles)-2)//4)*30)*2
                         elif cat == "JUICE & VFX":
                             for i, (l, at) in enumerate([("Enable Shake", "shake_enabled"), ("Enable Ghost", "vfx_enabled")]):
                                 y = cy+i*40; set_surf.blit(font_s.render(l, True, (150,150,150)), (20, y)); btn = pygame.Rect(sidebar_w-60, y-5, 40, 20); val = getattr(player, at); pygame.draw.rect(set_surf, (22, 163, 74) if val else (220, 38, 38), btn, border_radius=10); pygame.draw.circle(set_surf, (255,255,255), (btn.x+30 if val else btn.x+10, btn.y+10), 8)
