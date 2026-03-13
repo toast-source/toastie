@@ -1,7 +1,8 @@
 {
     "sources": [
         "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Cailin_00_Public.aseprite",
-        "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Nisariel_00_Public_02.aseprite"
+        "C:\\Users\\SOUTHPAW GAMES\\Desktop\\\uc0c8 \ud3f4\ub354\\Nisariel_00_Public_02.aseprite",
+        "C:\\Users\\SOUTHPAW GAMES\\Downloads\\mob07.aseprite"
     ],
     "profiles": [
         {
@@ -100,7 +101,8 @@
                 "SKILL 1": [],
                 "SKILL 2": [],
                 "SKILL 3": [],
-                "HURT": [],
+                "HIT_1": [],
+                "HIT_2": [],
                 "Swap_Enter": [
                     [
                         0,
@@ -220,7 +222,8 @@
                 "SKILL 1": [],
                 "SKILL 2": [],
                 "SKILL 3": [],
-                "HURT": [],
+                "HIT_1": [],
+                "HIT_2": [],
                 "Swap_Enter": [
                     [
                         1,
@@ -238,9 +241,81 @@
                     ]
                 ]
             }
+        },
+        {
+            "name": "NPC_2",
+            "source_idx": 2,
+            "mappings": {
+                "IDLE": [
+                    [
+                        2,
+                        "Idle_(Loop)"
+                    ]
+                ],
+                "WALK": [
+                    [
+                        2,
+                        "Walk_(Loop)"
+                    ]
+                ],
+                "JUMP": [],
+                "FALL": [],
+                "ComboAttack_1": [
+                    [
+                        2,
+                        "ComboAttack_1_Ready"
+                    ],
+                    [
+                        2,
+                        "ComboAttack_1"
+                    ]
+                ],
+                "ComboAttack_2": [
+                    [
+                        2,
+                        "ComboAttack2_Ready"
+                    ],
+                    [
+                        2,
+                        "ComboAttack2"
+                    ]
+                ],
+                "ComboAttack_3": [],
+                "ComboAttack_4": [],
+                "JUMPATTACK": [],
+                "POWERBOMB": [],
+                "DASH": [],
+                "SKILL 1": [],
+                "SKILL 2": [],
+                "SKILL 3": [],
+                "HIT_1": [
+                    [
+                        2,
+                        "Hit_A_Intro"
+                    ],
+                    [
+                        2,
+                        "Hit_A_(Loop)"
+                    ]
+                ],
+                "HIT_2": [
+                    [
+                        2,
+                        "Hit_B_Intro"
+                    ],
+                    [
+                        2,
+                        "Hit_B_(Loop)"
+                    ]
+                ],
+                "Swap_Enter": [],
+                "Swap_Exit": [],
+                "Break1": [],
+                "Break2": []
+            }
         }
     ],
-    "ai_count": 0,
+    "ai_count": 2,
     "platforms": [
         [
             262,

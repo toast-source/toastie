@@ -84,8 +84,8 @@
         ]
     },
     "ai": {
-        "target_ai_count": 1,
-        "npc_max_hp": 10
+        "target_ai_count": 2,
+        "npc_max_hp": 34
     },
     "platforms": {
         "alpha": 150

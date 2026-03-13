@@ -135,7 +135,7 @@ class AseSource:
 class AseProfile:
     def __init__(self, name, source_idx):
         self.name = name; self.source_idx = source_idx
-        self.mappings = { "IDLE": [], "WALK": [], "JUMP": [], "FALL": [], "ComboAttack_1": [], "ComboAttack_2": [], "ComboAttack_3": [], "ComboAttack_4": [], "JUMPATTACK": [], "POWERBOMB": [], "DASH": [], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [], "Swap_Exit": [], "Break1": [], "Break2": [] }
+        self.mappings = { "IDLE": [], "WALK": [], "JUMP": [], "FALL": [], "ComboAttack_1": [], "ComboAttack_2": [], "ComboAttack_3": [], "ComboAttack_4": [], "JUMPATTACK": [], "POWERBOMB": [], "DASH": [], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HIT_1": [], "HIT_2": [], "Swap_Enter": [], "Swap_Exit": [], "Break1": [], "Break2": [] }
 
 class Projectile:
     def __init__(self, master, x, y, vx, vy, source_idx, anim_tag):
@@ -286,7 +286,11 @@ class AseAI:
                         self.frame_idx += 1; self.anim_timer = 0
                         if self.active_tag_info and self.frame_idx > self.action_end_frame:
                             if target_info[1] == "Swap_Exit" and not self.action_queue: self.visible = False; self.swap_timer = 500; self.active_tag_info = None; self.active_action_slot = None; return
-                            if "(loop)" in target_info[1].lower(): self.frame_idx = tr[0]
+                            if "(loop)" in target_info[1].lower(): 
+                                if self.active_action_slot in ["HIT_1", "HIT_2"] and not self.action_queue:
+                                    self.active_tag_info = None; self.active_action_slot = None; self.decision = "IDLE"
+                                else:
+                                    self.frame_idx = tr[0]
                             elif self.is_temp and not self.action_queue:
                                 if getattr(self, 'attack_buffer', 0) > 0:
                                     self.attack_buffer -= 1
@@ -333,7 +337,7 @@ class AsepritePlayer:
             self.font_dmg = CachedFont(pygame.font.SysFont("Arial", 28, bold=True)) # Larger font for damage
         else:
             self.font_10 = None; self.font_12 = None; self.font_b = None; self.font_dmg = None
-        self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "SYNERGY": pygame.K_e, "HURT": pygame.K_v}
+        self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "SYNERGY": pygame.K_e, "HIT_1": pygame.K_v}
         self.popup = None
         self.sounds = {}
         if pygame.mixer.get_init():
@@ -367,7 +371,7 @@ class AsepritePlayer:
         except: pass
     def load_settings(self):
         if not hasattr(self, "key_map"):
-            self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "SYNERGY": pygame.K_e, "HURT": pygame.K_v}
+            self.key_map = {"ATTACK": pygame.K_z, "DASH": pygame.K_x, "JUMP": pygame.K_SPACE, "SKILL1": pygame.K_c, "SKILL2": pygame.K_b, "SKILL3": pygame.K_n, "SUMMON": pygame.K_g, "SWAP": pygame.K_t, "SYNERGY": pygame.K_e, "HIT_1": pygame.K_v}
         self.popup = None # {'msg': str, 'cb': func}
         if os.path.exists("ase_settings.json"):
             try:
@@ -424,7 +428,7 @@ class AsepritePlayer:
         else: self.solid_boxes = []
 
     def load_example(self):
-        proj_data = {"sources": ["C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Cailin_00_Public.aseprite", "C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Nisariel_00_Public_02.aseprite"], "profiles": [{"name": "PLAYER", "source_idx": 0, "mappings": {"IDLE": [[0, "Idle_(Loop)"]], "WALK": [[0, "Walk_(Loop)"]], "JUMP": [[0, "Jump_(Loop)"]], "FALL": [[0, "Fall_Ready"], [0, "Fall_(Loop)"]], "ComboAttack_1": [[0, "ComboAttack_1_Ready"], [0, "ComboAttack_1"]], "ComboAttack_2": [[0, "ComboAttack_2_Ready"], [0, "ComboAttack_2"]], "ComboAttack_3": [[0, "ComboAttack_3_Ready"], [0, "ComboAttack_3"]], "ComboAttack_4": [], "JUMPATTACK": [[0, "JumpAttack_Ready"], [0, "JumpAttack"]], "POWERBOMB": [[0, "PowerBomb_Ready"], [0, "PowerBomb_(Loop)"], [0, "PowerBomb_End"]], "DASH": [[0, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[0, "Swap_Enter"]], "Swap_Exit": [[0, "Swap_Exit_Ready"], [0, "Swap_Exit"]]}}, {"name": "NPC_1", "source_idx": 1, "mappings": {"IDLE": [[1, "Idle_(Loop)"]], "WALK": [[1, "Walk_(Loop)"]], "JUMP": [[1, "Jump(Loop)"]], "FALL": [[1, "Fall_Ready"], [1, "Fall_(Loop)"]], "ComboAttack_1": [[1, "ComboAttack_1_Ready"], [1, "ComboAttack_1"]], "ComboAttack_2": [[1, "ComboAttack_2"]], "ComboAttack_3": [[1, "ComboAttack_3_Ready"], [1, "ComboAttack_3"]], "ComboAttack_4": [[1, "ComboAttack_4_Ready"], [1, "ComboAttack_4"]], "JUMPATTACK": [[1, "JumpAttack_Ready"], [1, "JumpAttack"]], "POWERBOMB": [[1, "PowerBomb"], [1, "PowerBomb_(Loop)"], [1, "PowerBomb_End"]], "DASH": [[1, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[1, "Swap_Enter"]], "Swap_Exit": [[1, "Swap_Exit_Ready"], [1, "Swap_Exit"]]}}], "ai_count": 0, "platforms": [[262, 372, 200, 20], [500, 200, 200, 20], [-146, 248, 300, 20], [900, 300, 400, 20], [-1027, 207, 927, 51], [-164, 69, 254, 25]], "solid_boxes": [[-628, 254, 349, 275], [-739, -287, 614, 208]]}
+        proj_data = {"sources": ["C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Cailin_00_Public.aseprite", "C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Nisariel_00_Public_02.aseprite"], "profiles": [{"name": "PLAYER", "source_idx": 0, "mappings": {"IDLE": [[0, "Idle_(Loop)"]], "WALK": [[0, "Walk_(Loop)"]], "JUMP": [[0, "Jump_(Loop)"]], "FALL": [[0, "Fall_Ready"], [0, "Fall_(Loop)"]], "ComboAttack_1": [[0, "ComboAttack_1_Ready"], [0, "ComboAttack_1"]], "ComboAttack_2": [[0, "ComboAttack_2_Ready"], [0, "ComboAttack_2"]], "ComboAttack_3": [[0, "ComboAttack_3_Ready"], [0, "ComboAttack_3"]], "ComboAttack_4": [], "JUMPATTACK": [[0, "JumpAttack_Ready"], [0, "JumpAttack"]], "POWERBOMB": [[0, "PowerBomb_Ready"], [0, "PowerBomb_(Loop)"], [0, "PowerBomb_End"]], "DASH": [[0, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HIT_1": [], "HIT_2": [], "Swap_Enter": [[0, "Swap_Enter"]], "Swap_Exit": [[0, "Swap_Exit_Ready"], [0, "Swap_Exit"]]}}, {"name": "NPC_1", "source_idx": 1, "mappings": {"IDLE": [[1, "Idle_(Loop)"]], "WALK": [[1, "Walk_(Loop)"]], "JUMP": [[1, "Jump(Loop)"]], "FALL": [[1, "Fall_Ready"], [1, "Fall_(Loop)"]], "ComboAttack_1": [[1, "ComboAttack_1_Ready"], [1, "ComboAttack_1"]], "ComboAttack_2": [[1, "ComboAttack_2"]], "ComboAttack_3": [[1, "ComboAttack_3_Ready"], [1, "ComboAttack_3"]], "ComboAttack_4": [[1, "ComboAttack_4_Ready"], [1, "ComboAttack_4"]], "JUMPATTACK": [[1, "JumpAttack_Ready"], [1, "JumpAttack"]], "POWERBOMB": [[1, "PowerBomb"], [1, "PowerBomb_(Loop)"], [1, "PowerBomb_End"]], "DASH": [[1, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HIT_1": [], "HIT_2": [], "Swap_Enter": [[1, "Swap_Enter"]], "Swap_Exit": [[1, "Swap_Exit_Ready"], [1, "Swap_Exit"]]}}], "ai_count": 0, "platforms": [[262, 372, 200, 20], [500, 200, 200, 20], [-146, 248, 300, 20], [900, 300, 400, 20], [-1027, 207, 927, 51], [-164, 69, 254, 25]], "solid_boxes": [[-628, 254, 349, 275], [-739, -287, 614, 208]]}
         set_data = {"physics": {"dash_speed": 12.0, "jump_power": -18.0, "powerbomb_speed": 35.0, "cam_v_offset": -120}, "combat": {"atk_forward_v": 15.0}, "vfx": {"shake_enabled": True, "vfx_enabled": True, "base_shake": 0.2}, "viewport": {"show_viewport": True, "target_w": 640, "target_h": 360}, "bg": {"bg_color": [17, 15, 18], "layers": [{"path": "C:/Users/SOUTHPAW GAMES/Desktop/새 폴더/로비 컨셉94 (1).png", "off_x": 0, "off_y": -130.0, "zoom": 2.0, "alpha": 255, "parallax": 0.9862068965517241}]}, "ai": {"target_ai_count": 0}, "platforms": {"alpha": 5.275862068965517}}
         
         # Apply settings
@@ -463,7 +467,7 @@ class AsepritePlayer:
         self.save_settings(); self.save_project()
 
     def load_example2(self):
-        proj_data = {"sources": ["C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Cailin_00_Public.aseprite", "C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Nisariel_00_Public_02.aseprite"], "profiles": [{"name": "PLAYER", "source_idx": 0, "mappings": {"IDLE": [[0, "Idle_(Loop)"]], "WALK": [[0, "Walk_(Loop)"]], "JUMP": [[0, "Jump_(Loop)"]], "FALL": [[0, "Fall_Ready"], [0, "Fall_(Loop)"]], "ComboAttack_1": [[0, "ComboAttack_1_Ready"], [0, "ComboAttack_1"]], "ComboAttack_2": [[0, "ComboAttack_2_Ready"], [0, "ComboAttack_2"]], "ComboAttack_3": [[0, "ComboAttack_3_Ready"], [0, "ComboAttack_3"]], "ComboAttack_4": [], "JUMPATTACK": [[0, "JumpAttack_Ready"], [0, "JumpAttack"]], "POWERBOMB": [[0, "PowerBomb_Ready"], [0, "PowerBomb_(Loop)"], [0, "PowerBomb_End"]], "DASH": [[0, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[0, "Swap_Enter"]], "Swap_Exit": [[0, "Swap_Exit_Ready"], [0, "Swap_Exit"]]}}, {"name": "NPC_1", "source_idx": 1, "mappings": {"IDLE": [[1, "Idle_(Loop)"]], "WALK": [[1, "Walk_(Loop)"]], "JUMP": [[1, "Jump(Loop)"]], "FALL": [[1, "Fall_Ready"], [1, "Fall_(Loop)"]], "ComboAttack_1": [[1, "ComboAttack_1_Ready"], [1, "ComboAttack_1"]], "ComboAttack_2": [[1, "ComboAttack_2"]], "ComboAttack_3": [[1, "ComboAttack_3_Ready"], [1, "ComboAttack_3"]], "ComboAttack_4": [[1, "ComboAttack_4_Ready"], [1, "ComboAttack_4"]], "JUMPATTACK": [[1, "JumpAttack_Ready"], [1, "JumpAttack"]], "POWERBOMB": [[1, "PowerBomb"], [1, "PowerBomb_(Loop)"], [1, "PowerBomb_End"]], "DASH": [[1, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HURT": [], "Swap_Enter": [[1, "Swap_Enter"]], "Swap_Exit": [[1, "Swap_Exit_Ready"], [1, "Swap_Exit"]]}}], "ai_count": 0, "platforms": [[262, 372, 200, 20], [500, 200, 200, 20], [-146, 248, 300, 20], [900, 300, 400, 20], [-1027, 207, 927, 51], [-164, 69, 254, 25]], "solid_boxes": [[-628, 254, 349, 275], [-739, -287, 614, 208]]}
+        proj_data = {"sources": ["C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Cailin_00_Public.aseprite", "C:\\Users\\SOUTHPAW GAMES\\Desktop\\새 폴더\\Nisariel_00_Public_02.aseprite"], "profiles": [{"name": "PLAYER", "source_idx": 0, "mappings": {"IDLE": [[0, "Idle_(Loop)"]], "WALK": [[0, "Walk_(Loop)"]], "JUMP": [[0, "Jump_(Loop)"]], "FALL": [[0, "Fall_Ready"], [0, "Fall_(Loop)"]], "ComboAttack_1": [[0, "ComboAttack_1_Ready"], [0, "ComboAttack_1"]], "ComboAttack_2": [[0, "ComboAttack_2_Ready"], [0, "ComboAttack_2"]], "ComboAttack_3": [[0, "ComboAttack_3_Ready"], [0, "ComboAttack_3"]], "ComboAttack_4": [], "JUMPATTACK": [[0, "JumpAttack_Ready"], [0, "JumpAttack"]], "POWERBOMB": [[0, "PowerBomb_Ready"], [0, "PowerBomb_(Loop)"], [0, "PowerBomb_End"]], "DASH": [[0, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HIT_1": [], "HIT_2": [], "Swap_Enter": [[0, "Swap_Enter"]], "Swap_Exit": [[0, "Swap_Exit_Ready"], [0, "Swap_Exit"]]}}, {"name": "NPC_1", "source_idx": 1, "mappings": {"IDLE": [[1, "Idle_(Loop)"]], "WALK": [[1, "Walk_(Loop)"]], "JUMP": [[1, "Jump(Loop)"]], "FALL": [[1, "Fall_Ready"], [1, "Fall_(Loop)"]], "ComboAttack_1": [[1, "ComboAttack_1_Ready"], [1, "ComboAttack_1"]], "ComboAttack_2": [[1, "ComboAttack_2"]], "ComboAttack_3": [[1, "ComboAttack_3_Ready"], [1, "ComboAttack_3"]], "ComboAttack_4": [[1, "ComboAttack_4_Ready"], [1, "ComboAttack_4"]], "JUMPATTACK": [[1, "JumpAttack_Ready"], [1, "JumpAttack"]], "POWERBOMB": [[1, "PowerBomb"], [1, "PowerBomb_(Loop)"], [1, "PowerBomb_End"]], "DASH": [[1, "Dash"]], "SKILL 1": [], "SKILL 2": [], "SKILL 3": [], "HIT_1": [], "HIT_2": [], "Swap_Enter": [[1, "Swap_Enter"]], "Swap_Exit": [[1, "Swap_Exit_Ready"], [1, "Swap_Exit"]]}}], "ai_count": 0, "platforms": [[262, 372, 200, 20], [500, 200, 200, 20], [-146, 248, 300, 20], [900, 300, 400, 20], [-1027, 207, 927, 51], [-164, 69, 254, 25]], "solid_boxes": [[-628, 254, 349, 275], [-739, -287, 614, 208]]}
         set_data = {"physics": {"dash_speed": 12.0, "jump_power": -18.0, "powerbomb_speed": 35.0, "cam_v_offset": -100.0}, "combat": {"atk_forward_v": 15.0}, "vfx": {"shake_enabled": True, "vfx_enabled": True, "base_shake": 0.2}, "viewport": {"show_viewport": True, "target_w": 640, "target_h": 360}, "bg": {"bg_color": [15, 15, 18], "layers": [{"path": "C:/Users/SOUTHPAW GAMES/Downloads/00.png", "off_x": 0, "off_y": -13, "zoom": 2.0, "alpha": 255, "parallax": 0.0, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/01.png", "off_x": 0, "off_y": -27, "zoom": 2.0, "alpha": 255, "parallax": 0.05, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 2번_완성본.png", "off_x": 0, "off_y": -137, "zoom": 2.0, "alpha": 125, "parallax": 0.06, "loop_x": False}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 3번_완성본.png", "off_x": 0, "off_y": -220, "zoom": 2.0, "alpha": 255, "parallax": 0.5344827586206895, "loop_x": True}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/# 4번_완성본.png", "off_x": 0, "off_y": -234, "zoom": 2.0, "alpha": 255, "parallax": 0.703448275862069, "loop_x": True}, {"path": "C:/Users/SOUTHPAW GAMES/Downloads/레이어 3.png", "off_x": 0, "off_y": 137, "zoom": 2.0, "alpha": 255, "parallax": 1.0, "loop_x": True}]}, "ai": {"target_ai_count": 0}, "platforms": {"alpha": 150}}
         
         # Apply settings
@@ -539,13 +543,32 @@ class AsepritePlayer:
         if is_npc: self.ai_list.append(AseAI(self, new_profile))
     def auto_map_profile(self, profile):
         if profile.source_idx >= len(self.sources): return
-        source = self.sources[profile.source_idx]; suffix = re.compile(r"(_|\s)?\(?(ready|loop|end)\)?", re.IGNORECASE)
+        source = self.sources[profile.source_idx]
+        suffix = re.compile(r"(_|\s)?\(?(ready|intro|loop|end)\)?", re.IGNORECASE)
         for slot in profile.mappings.keys():
-            base_slot = slot.lower().replace("ComboAttack_", "attack").replace(" ", "").replace("_", ""); matches = []
+            base_slot = slot.lower().replace("ComboAttack_", "attack").replace(" ", "").replace("_", "")
+            matches = []
             for t in source.tag_list:
                 clean_t = suffix.sub("", t).lower().replace(" ", "").replace("_", "")
-                if clean_t == base_slot or (base_slot == "walk" and clean_t == "move"): matches.append([profile.source_idx, t])
-            def sort_key(item): tl = item[1].lower(); return 0 if "ready" in tl else (2 if "end" in tl else 1)
+                is_match = False
+                
+                if clean_t == base_slot:
+                    is_match = True
+                elif base_slot == "walk" and clean_t == "move":
+                    is_match = True
+                elif base_slot == "hit1":
+                    if clean_t in ["hit", "hurt", "hita", "hit1", "hurta", "hurt1"]: is_match = True
+                elif base_slot == "hit2":
+                    if clean_t in ["hitb", "hit2", "hurtb", "hurt2"]: is_match = True
+                    
+                if is_match:
+                    matches.append([profile.source_idx, t])
+                    
+            def sort_key(item): 
+                tl = item[1].lower()
+                if "ready" in tl or "intro" in tl: return 0
+                if "end" in tl: return 2
+                return 1
             profile.mappings[slot] = sorted(matches, key=sort_key)
     def handle_attack(self, keys):
         if self.swap_timer > 0: return
@@ -963,7 +986,7 @@ class AsepritePlayer:
                         self.projectiles.append(Projectile(self, px, py, proj_vx, 0, self.active_tag_info[0] if ptag else None, ptag))
                         self.play_sound('dash')
                     elif not has_hit_slice:
-                        hw, hh = 60, 50
+                        hw, hh = 90, 50
                         # Enlarge hitbox significantly if this is a synergy attack
                         if "skill" in slot_l and getattr(self, 'synergy_vfx_timer', 0) > 0:
                             hw, hh = 150, 100
@@ -984,14 +1007,18 @@ class AsepritePlayer:
                         self.damage_numbers.append({'val': dmg, 'x': ai.x + random.uniform(-10, 10), 'y': ai.y - 60, 'lifetime': 1000, 'max_life': 1000, 'vy': -2})
                         
                         if self.shake_enabled: self.shake_timer = 10; self.shake_intensity = 5
-                        self.hitstop_timer = 60 # 60ms Hit-stop for impact
+                        self.hitstop_timer = 120 # 120ms Hit-stop for impact (Increased for better feel)
                         self.play_sound('hit')
-                        
+
                         # Knockback (only for NPCs, not props)
                         if not getattr(ai, 'is_prop', False):
                             ai.vx = 8 if self.x < ai.x else -8
-                            ai.vy = -3 # Slight airborne knockback
-                        
+                            ai.vy = -6 # Increased airborne knockback
+                            
+                            ai.hit_count = getattr(ai, 'hit_count', 0) + 1
+                            hit_slot = "HIT_1" if ai.hit_count % 2 == 1 else "HIT_2"
+                            if not ai.profile.mappings.get(hit_slot, []): hit_slot = "HIT_1"
+                            ai.trigger_action(hit_slot)                        
                         # Generate Impact Sparks
                         for _ in range(5):
                             angle = random.uniform(math.pi*0.8, math.pi*1.2) if self.x < ai.x else random.uniform(-math.pi*0.2, math.pi*0.2)
@@ -1084,6 +1111,15 @@ class AsepritePlayer:
                         self.damage_numbers.append({'val': dmg, 'x': ai.x + random.uniform(-10, 10), 'y': ai.y - 60, 'lifetime': 1000, 'max_life': 1000, 'vy': -2})
                         
                         if self.shake_enabled: self.shake_timer = 10; self.shake_intensity = 3
+                        
+                        if not getattr(ai, 'is_prop', False):
+                            ai.vx = 6 if proj.vx > 0 else -6
+                            ai.vy = -4
+                            
+                            ai.hit_count = getattr(ai, 'hit_count', 0) + 1
+                            hit_slot = "HIT_1" if ai.hit_count % 2 == 1 else "HIT_2"
+                            if not ai.profile.mappings.get(hit_slot, []): hit_slot = "HIT_1"
+                            ai.trigger_action(hit_slot)
                         
                         # Generate Impact Sparks
                         for _ in range(5):
@@ -1330,7 +1366,7 @@ class AsepritePlayer:
                     if entity.active_tag_info:
                         tr = src.tags.get(entity.active_tag_info[1], (0, 0))
                         if f_idx == tr[0] and not getattr(entity, 'is_prop', False):
-                            hw, hh = 60, 50
+                            hw, hh = 90, 50
                             hox = 10 if facing_right else -10 - hw
                             hx = cx + (x - cam_x + hox) * self.zoom
                             hy = cy + (y - cam_y - 50) * self.zoom
@@ -2087,7 +2123,11 @@ def main():
                     elif k == km.get("SKILL1"): player.trigger_action("SKILL 1")
                     elif k == km.get("SKILL2"): player.trigger_action("SKILL 2")
                     elif k == km.get("SKILL3"): player.trigger_action("SKILL 3")
-                    elif k == km.get("HURT"): player.trigger_action("HURT")
+                    elif k == km.get("HIT_1"):
+                        player.hit_count = getattr(player, 'hit_count', 0) + 1
+                        hit_slot = "HIT_1" if player.hit_count % 2 == 1 else "HIT_2"
+                        if not player.profiles[0].mappings.get(hit_slot, []): hit_slot = "HIT_1"
+                        player.trigger_action(hit_slot)
                     elif k == km.get("SYNERGY"): player.trigger_synergy_attack()
                     elif k == km.get("SWAP"): 
                         if hasattr(player, 'execute_swap'): player.execute_swap()
