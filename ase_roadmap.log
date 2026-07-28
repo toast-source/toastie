@@ -606,3 +606,15 @@ Current Version: v33 (Stable) - GitHub Uploaded
 - Created the approved-scope ZIP at 20,612,661 bytes, SHA-256
   `7F5D7B75014CC355D5DC7D06499429B3BE7A3342FE8514871C4CE57622DD05B8`,
   with a companion `.sha256`.
+
+## [WORKSPACE CLEANUP / REPOSITORY HYGIENE - 2026-07-28, UNCOMMITTED]
+- Quarantine, rather than delete, 384,425,327 bytes of historical build/dist,
+  diagnostic EXEs, staging folders, the obsolete tkfix ZIP, logs, and caches.
+- Retire `.gemini`; its useful purpose, stack, safety, and manual-check notes
+  are already superseded by README and handover documentation.
+- Remove tracked `build/` and `.gemini/` artifacts from the repository and
+  ignore `cleanup_quarantine_v*/`.
+- Preserve user JSON, all resources including internal examples, source,
+  tests, icons, Aseprite fixtures, and the final with-examples ZIP/SHA.
+- Validate source checks and focused tests after cleanup, then create a
+  dedicated cleanup commit and push main without changing the v0.5.8.3 tag.

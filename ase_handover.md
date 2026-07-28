@@ -937,3 +937,19 @@ Pygame-based Aseprite previewer with action game physics. Focuses on accurate an
   SHA-256
   `7F5D7B75014CC355D5DC7D06499429B3BE7A3342FE8514871C4CE57622DD05B8`,
   plus its companion `.sha256`.
+
+## 39. Workspace Cleanup / Repository Hygiene (uncommitted, 2026-07-28)
+
+- Moved 384,425,327 bytes of generated build/dist output, diagnostic builds,
+  staging folders, the obsolete tkfix package, logs, caches, and the retired
+  `.gemini` context into ignored `cleanup_quarantine_v0.5.8.3`.
+- The Gemini context contained only project purpose, stack, completed safety
+  work, and manual-test constraints already documented more completely in
+  README and this handover. It is therefore removed from repository tracking.
+- Remove historical tracked `build/` artifacts from the repository. Local
+  copies remain recoverable in quarantine until the user deletes that folder.
+- Preserve source, icons, tests, `resources/examples`, all other resources,
+  user project/settings JSON, Aseprite fixtures, and the final
+  `ase_viewer_v0.5.8.3_with_examples.zip` plus its `.sha256`.
+- Cleanup quarantine is intentionally ignored and must never be committed.
+  The existing `v0.5.8.3` tag is not moved or recreated.
