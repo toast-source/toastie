@@ -1,4 +1,5 @@
 node_modules/
+build/
 dist/
 *.log
 temp.png
@@ -7,4 +8,17 @@ temp_export.png
 temp_export.json
 .env
 *.local
+.gemini/
+.pytest_cache/
 __pycache__/
+build_v*/
+dist_v*/
+release_v*/
+package_v*/
+ase_viewer_v*/
+_build_info.py
+*.zip
+*.sha256
+ase_project.json
+ase_settings.json
+resources/

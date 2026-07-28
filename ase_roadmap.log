@@ -34,3 +34,575 @@ Current Version: v33 (Stable) - GitHub Uploaded
 - All tools/commands must use 'pwsh' (PowerShell 7).
 - Maintain minimal chitchat and focus on idiomatic Python/Pygame code.
 - Always check 'ase_debug.log' for buffer/export errors.
+
+## [UNCOMMITTED STABILIZATION - 2026-07-22]
+- Portable application/resource/project path handling completed.
+- Example presets no longer contain developer-machine absolute paths.
+- Aseprite CLI timeout, exit-code, output-file, and metadata validation completed.
+- Relative project source paths retain compatibility with existing absolute paths.
+- Headless application check and real-Aseprite conditional integration test added.
+- Manual GUI verification remains for example dialogs, combat, swap, and platform editing.
+
+## [GUI/PACKAGING STABILIZATION - 2026-07-23, UNCOMMITTED]
+- Added atomic EX preset application and atomic multi-source project recovery.
+- Added `--check-gui` for movement, dash, combo, swap, NPC, prop, platform, and rendering smoke coverage.
+- Added package resource tests and external-test-asset distribution policy.
+- Temporary PyInstaller executable passed checks from different working directories with spaces and Korean characters.
+- Replaced core silent exception handlers with typed, de-duplicated fallback logging.
+- Added `MANUAL_TEST_CHECKLIST.md`; visible GUI workflows still require human verification.
+
+## [EXAMPLE PRESET RESTORATION - 2026-07-23, UNCOMMITTED]
+- Recovered EX 1 and EX 2 from Git `5598e4d` plus the old runtime folder's
+  2026-06-11 project/settings JSON.
+- Added `resources/examples` copies: two shared Aseprite sources, one EX 1
+  lobby background, and six EX 2 parallax layers.
+- Restored explicit PLAYER/NPC_1 mappings, six platforms, two solid boxes,
+  camera/settings values, and the complete EX 2 layer order and coefficients.
+- Kept atomic application and application-root-relative resource resolution.
+- No historical automatic prop data was found; it remains unrecovered rather
+  than being replaced with guessed values.
+
+## [NPC/PROP SLICE EXPORT + SOURCE INTEGRITY - 2026-07-23, UNCOMMITTED]
+- Added NPC SAVE rows and shared NPC/PROP Parts/Particles PNG export.
+- Added filename sanitization, deterministic fallback names, collision-safe
+  auto-renaming, per-Slice failure isolation, and one summary dialog.
+- Added optional persisted source/profile kind metadata with legacy fallback.
+- Source removal now deletes direct profile/instance references and shifts all
+  remaining source/mapping/action indices without automatic remapping.
+- Added Slice export and source-removal regression tests.
+- Deferred combat frame duplicate-hit work and NPC death-debris redesign.
+
+## [LAYER / DEAD_LOOP / SLICE CLASSIFICATION - 2026-07-23, UNCOMMITTED]
+- Replaced name-only layer visibility with source-local index/path keys so
+  duplicate names can be toggled independently; ambiguous legacy names remain
+  visible instead of hiding every match.
+- Added the `DEAD_LOOP` profile slot and Dead/Death loop-name auto-mapping.
+  Valid mappings keep a non-targetable corpse at the death position.
+- NPC death now selects DEAD_LOOP corpse, precise Parts Slice debris, existing
+  3x3 split, then colored fallback in that order.
+- Shared precise Slice debris creation between NPC and PROP.
+- SAVE now requires valid Parts pixels. AUTO classifies from all tag frames,
+  NAME preserves name-based compatibility, and output uses deterministic
+  profile-based Parts/Particle numbering.
+- Added duplicate-layer, NPC-death, classification, export, and persistence
+  regression coverage. Runtime corpse/3x3 debris persistence remains out of
+  scope.
+
+## [LAYERS REGRESSION RECOVERY - 2026-07-23, UNCOMMITTED]
+- Replaced the incomplete sprite-sheet `meta.layers` UI source with a separate
+  Lua inventory of the original Aseprite stack.
+- Preserved bottom-to-top source order, group rows, depth, empty/hidden/type
+  metadata, UUID identity, and source-local visibility state.
+- Added index/path fallback aliases for legacy files whose layer UUID is
+  regenerated on each headless open.
+- Visibility filtering now runs only after inventory capture and never saves
+  the original; originally hidden layers are no longer forced visible.
+- Isolated Windows batch APPDATA from large user recovery sessions that could
+  otherwise stall even `--version`.
+- Failed refresh/export preserves the previous list, visibility, frames, and
+  modification timestamp so a transient CLI error cannot blank the source.
+- Added 35-row scroll/clamp coverage, ordered Layer-chunk parsing, full
+  inventory-toggle-render tests, and `--check-layers`.
+- Available repository and historical fixtures are all flattened one-layer
+  files; real duplicate/group visual verification remains manual.
+
+## [NPC SOURCE AUTO SLICE ANALYSIS - 2026-07-23, UNCOMMITTED]
+- Added a revision-bound AUTO Parts/Particles analysis cache to each AseSource.
+- Connected NPC registration/spawn, shared AUTO SAVE, NPC/PROP hit Particles,
+  and NPC/PROP precise debris to the same cached Slice items.
+- Kept NAME as a SAVE-only compatibility choice and preserved DEAD_LOOP,
+  3x3/colored fallbacks, PROP break stages, and existing particle physics.
+- Successful refresh replaces metadata and analysis together; failed refresh
+  retains the previous cache.
+- Added compact P/FX/SAVE row status and NPC cache/runtime regression tests.
+
+## [NPC PARTS USABILITY FOLLOW-UP - 2026-07-23, UNCOMMITTED]
+- Made NPC death branch explicitly on cached `has_valid_parts`, using cached
+  representative Slice surfaces before the unchanged 3x3 and colored fallbacks.
+- Added a selectable NPC `DETECTED SLICES` panel for Parts/Particles counts,
+  death mode, SAVE availability, and the current invalid reason.
+- Confirmed NPC/PROP SAVE still shares profile-based, independently numbered
+  Parts/Particle filenames; default Slice numbers do not affect output names.
+
+## [v0.5.0.1 RUNTIME REGRESSION RECOVERY - 2026-07-23, UNCOMMITTED]
+- Verified NPC precise and 3x3 debris through creation, one update, and the
+  image-particle render path; added concise death-branch diagnostics.
+- Added PROP DEAD_LOOP and DEAD corpse states. DEAD stops on its last frame;
+  airborne corpses retain only gravity and platform/ground landing.
+- Made completed action queues select the passive tag and its first frame in
+  the same update, removing the stale attack-frame flash without changing
+  combo buffering or progression.
+- Replaced the 1350x850 default with a desktop-aware guide/sidebar calculation,
+  capped at 90% of the desktop, and added the shared `v0.5.0.1` title/check/log
+  version.
+- Korean UI and Unity parallax conversion/export remain deferred.
+
+## [v0.5.1.0 KOREAN/ENGLISH UI - 2026-07-23, UNCOMMITTED]
+- Added centralized `ko`/`en` translations, Korean default selection, immediate
+  main-UI switching, and backward-compatible persistence in the app settings.
+- Added cached Korean-capable Windows system fonts without bundling font files.
+- Clarified AUTO/NAME versus filename modes and added live target/Slice filename
+  previews while retaining English technical terms alongside Korean labels.
+- Localized the Parts/Particles confirmation and result summary. Unity parallax
+  value export remains the next separate task.
+
+## [v0.5.1.1 MEASURED UI + TOOLTIPS - 2026-07-23, UNCOMMITTED]
+- Replaced translated top/action button fixed widths with cached-font
+  measurement, common padding, bounded widths, and shared row placement.
+- Added Korean-safe wrapping, path/status ellipsis, 400ms pygame hover state,
+  screen-edge correction, and translated tooltips for major options.
+- Added equivalent AUTO/NAME and filename-mode tooltips to the export dialog.
+- Unity parallax-value export remains the next separate task.
+
+## [v0.5.1.2 EMPTY-PROJECT OPTIONS - 2026-07-24, UNCOMMITTED]
+- Decoupled OPTIONS panel rendering from `player.profiles`, keeping global
+  settings accessible with zero sources, profiles, NPCs, PROPs, or backgrounds.
+- Added translated source-required LAYERS state, disabled tooltip, safe empty
+  sidebar input handling, and shared positive scroll-height calculation.
+
+## [v0.5.2.0 UNITY PARALLAX HANDOFF - 2026-07-24, UNCOMMITTED]
+- Documented the unchanged Viewer parallax formula and added pure conversion:
+  Unity follow ratio `1-parallax`, offsets `(x/PPU, -y/PPU)`, local scale
+  `viewerZoom*0.5`, and original back-to-front sorting order.
+- Added PPU validation, detailed and compact localized handoff text, inactive
+  filtering, read-only preview, clipboard copy, success/failure handling, and
+  optional app-setting persistence without project-schema changes.
+
+## [v0.5.2.1 UNITY SHARING FORMATS - 2026-07-24, UNCOMMITTED]
+- Replaced the wide compact output with Slack, Jira/Notion Markdown, and TSV
+  formatters while keeping the detailed output and all conversion values.
+- Added Unicode-aware fixed-width Slack tables, long-name mapping, safe fences,
+  mobile-width card fallback, Markdown escaping, and pure tabular TSV output.
+- Migrated legacy `compact` settings to `slack` in memory without an automatic
+  settings write. Added four-format live preview help, scrollbars, counts, and
+  format-specific clipboard confirmation.
+
+## [v0.5.2.2 MEASURED PERFORMANCE - 2026-07-24, UNCOMMITTED]
+- Added 600-frame section timing, F10 four-Hz overlay,
+  `--profile-performance`, and a deterministic no-save dummy-SDL benchmark.
+- Measured world rendering as the dominant section. Reused exact-zoom image
+  Part scaling, compacted expired runtime objects in one pass, bounded UI and
+  animation caches, and removed normal-frame filesystem polling.
+- The identical pre/post workload improved average frame work from 0.8413 ms
+  to 0.7690 ms and p95 from 1.1688 ms to 0.9383 ms. The already sub-millisecond
+  headless case did not justify broader renderer or behavior changes.
+- Deferred resource library, character/instance selection, selection summary,
+  clearer action labels, tooltip completion, and full scrollable export-name
+  preview to v0.5.3.0.
+
+## [v0.5.3.0 SELECTION WORKSPACE + FULL EXPORT PREVIEW - 2026-07-24, UNCOMMITTED]
+- Replaced the internal-name profile/source strips with Current Selection,
+  Scene Actors, and Resource Library UI while preserving profile/source
+  indices, instance lists, project schema, and existing action callbacks.
+- Added runtime-friendly instance names, same-name numbering, linked-resource
+  highlighting, empty states, bilingual action labels/tooltips, and
+  disabled-action tooltip coverage.
+- Added cached list models and visible-row-only rendering/tooltips with clamped
+  wheel scrolling for long actor/resource collections.
+- Added a shared Slice export plan used by both PNG writing and the modal's
+  complete grouped filename list. The preview has both scrollbars, totals,
+  live option updates, empty/error handling, and collision-suffix guidance.
+
+## [v0.5.3.1 SIDEBAR MODE + CLIPPING RECOVERY - 2026-07-24, UNCOMMITTED]
+- Moved scene/resource header click routing out of the impossible `x < play_w`
+  branch and made real header Rects the first hit-test targets.
+- Unified mapping, settings, scene, and resources under one exclusive
+  `sidebar_mode`; removed the workspace's duplicate internal tabs.
+- Split the fixed 70px header from the scrollable OPTIONS content Surface,
+  translated settings mouse coordinates by the same origin, clipped tooltips,
+  and clamped scrolling against the content viewport height.
+- Added targeted mode/clipping tests and the temporary-screenshot,
+  no-save/no-Aseprite `--check-sidebar-ui` regression command.
+
+## [v0.5.3.2 SCENE OBJECT STABILITY + CORPSE CLEANUP - 2026-07-24, UNCOMMITTED]
+- Added runtime-only PLAYER/NPC/PROP scene badges with two-digit, compact
+  scene-order numbering and an explicit CORPSE suffix. Stored names, IDs,
+  paths, and project schema remain unchanged.
+- Protected existing actor placement, transform, animation/state, and
+  selection around NPC/PROP resource registration and resource refresh. New
+  objects alone receive default placement.
+- Added a bilingual Scene-mode action that deletes only the selected,
+  explicitly identified corpse/remnant and falls back to a neighboring
+  selection. Living selections and empty scenes are safe no-ops.
+- Preserved the v0.5.3.1 exclusive sidebar modes and header/content/tooltip
+  clipping. Added focused numbering, resource-preservation, and corpse cleanup
+  regression tests; existing sidebar, selection, empty-project, and layout
+  tests plus `--check-sidebar-ui` remain green.
+- Protected user JSON, build/dist output, Aseprite originals, and resource
+  originals. No Aseprite CLI, full GUI smoke, packaging, commit, or tag was
+  run.
+
+## [v0.5.4 SCENE OBJECT MANAGEMENT POLISH - 2026-07-24, UNCOMMITTED]
+- Added session-only All/Player/NPC/Prop/Corpse filters over full scene rows.
+  Internal order, data, names, IDs, and project schema remain untouched, and
+  scene-wide NPC/PROP badge numbers remain stable across filters.
+- Hidden-by-filter selections retain their runtime identity. Deleted
+  selections use a next/previous visible fallback, while surviving selections
+  persist across filters, sidebar modes, language refresh, and resource work.
+- Added immediate Delete All Corpses with localized count status. It reuses
+  explicit-state-first corpse detection and cannot remove PLAYER, PROP, or
+  living NPC rows.
+- Implemented Focus Selected as camera-only `cam_x/cam_y` movement with camera
+  follow disabled; entity and player transforms are unchanged.
+- Routed top-level F5 source refresh and profile auto-mapping through the same
+  v0.5.3.2 scene snapshot/restore boundary used by Resource Library refresh.
+- Added focused filter, delete-all, selection persistence, focus, UI action
+  layout, and F5 refresh regression coverage. Sidebar mode and clipping checks
+  remain green with zero header overlap.
+- User JSON, build/dist output, Aseprite/resource originals, packaging,
+  commits, and tags remain protected and untouched by this task.
+
+## [v0.5.5.1 PARTNER ROSTER + PIVOT HOTFIX - 2026-07-24, UNCOMMITTED]
+- Separated neutral source import from Player/Partner/NPC/Prop assignment.
+  File drop and `+ Source` no longer force an NPC role; legacy explicit NPC and
+  PROP import shortcuts remain available.
+- Added four Resource Library role actions. The same source can back separate
+  role profiles without changing its name, ID, path, or generic source kind.
+  NPC/PROP roles create scene instances; Partner does not.
+- Replaced the v0.5.5 Partner scene-actor interpretation with a
+  `partner_profiles` standby roster. Removed Partner numbering/filtering,
+  render/update/AI/physics, selection/focus, scene snapshots, HP, NPC count,
+  and corpse paths. Resources exposes roster count and next candidate.
+- Moved EX swap candidates and new swap role assignments to Partner. Partner
+  swaps exchange PLAYER/PARTNER profile roles, rotate the outgoing profile
+  back into the roster, and keep exact Player/NPC/PROP positions and NPC
+  counts. Old NPC-based swaps remain a fallback for legacy data.
+- Kept schema version 2 and added `partner` only as an optional existing
+  profile-kind value. Kind-less legacy projects retain the old inference and
+  are never force-migrated or saved. Legacy runtime `partner_list` actors are
+  absorbed as roster profiles and then discarded as scene actors.
+- Replaced fixed `player.y - 100` NPC spawning with a ground-coordinate spawn
+  and stable profile ground offset. Explicit Aseprite pivot/anchor Slices win;
+  otherwise the representative trimmed-frame bottom is aligned to ground.
+- 109 targeted tests across 22 isolated modules passed. An initial broad
+  example test invocation unintentionally reached one configured Aseprite
+  integration case in a temporary directory; user JSON and source assets were
+  not saved or modified. Full GUI/LAYERS integration, packaging, commits, and
+  tags were not run. Protected user JSON, resources, build, and dist were not
+  modified by this hotfix.
+
+## [v0.5.5.2 SIDEBAR NAVIGATION + TAG SETUP ENTRY - 2026-07-24, UNCOMMITTED]
+- Promoted the existing `mapping` mode to an explicit Tag Setup / 태그 등록
+  header entry. Unified Tag Setup, OPTIONS, Scene, and Resources as four
+  equal, always-visible sidebar buttons.
+- Changed same-button behavior from implicit mapping fallback to idempotent
+  mode selection. The single `sidebar_mode` state remains authoritative.
+- Added localized Tag / Animation Setup title and empty/source-only guidance,
+  plus a Resource import next-step hint. Tag mapping remains separate from
+  Player/Partner/NPC/Prop role assignment.
+- Preserved the 70px header boundary and all content coordinate transforms.
+  Added header overlap, click geometry, active-state, minimum-width language,
+  and empty-project navigation coverage.
+- Kept Partner roster semantics, T swap, Resource Role Assignment, SporeHeart
+  ground alignment, and Player/NPC/PROP/F5 position preservation unchanged.
+- 83 targeted and adjacent tests in 17 isolated modules passed, along with py_compile,
+  sidebar UI check, and diff whitespace validation. No Aseprite/Example/
+  LAYERS integration, full GUI smoke, packaging, commit, or tag was run.
+  User JSON, original resources, build, and dist were protected.
+
+## [v0.5.5.3 PLACEMENT LABEL + FIRST-RUN FLOW POLISH - 2026-07-24, UNCOMMITTED]
+- Renamed the Korean Scene header label to `배치` and its content title to
+  `배치된 캐릭터·오브젝트`. Kept the English `Scene` header for continuity
+  and minimum-width safety; its content title is `Placed Characters & Objects`.
+- Preserved the internal `scene` mode, scene functions/model, project schema,
+  and runtime behavior. The label change does not migrate or save user data.
+- Clarified empty-state guidance as Resources import -> Tag Setup review ->
+  Player/NPC/Prop role assignment -> Placement review. Partner remains a
+  profile-only T-swap roster and is excluded from placement guidance.
+- Added focused label, guidance, click routing, active-state, and minimum-width
+  tests. Adjacent sidebar/clipping, role, partner/T-swap, pivot, position,
+  localization, and corpse regressions are retained.
+- 75 tests across 14 isolated modules passed. `py_compile`,
+  `--check-sidebar-ui`, and `git diff --check` passed with zero sidebar header
+  overlap, hidden controls, or hidden tooltips.
+- No Aseprite CLI, Example/LAYERS integration, full GUI smoke, PyInstaller,
+  packaging, commit, or tag was run. User JSON, source resources, build, and
+  dist were protected.
+
+## [v0.5.6 GROUNDED DASH FX + PARALLAX OFFSET GIZMO - 2026-07-24, UNCOMMITTED]
+- Restricted dash ground dust to dashes that started grounded and remain
+  grounded after the current frame's collision pass. Air-start, jump, fall,
+  and post-ledge dash frames emit no ground dust; actor motion and afterimages
+  remain unchanged.
+- Added a default-OFF, session-only Parallax Gizmo toggle under BG IMAGE.
+  The selected `active_bg_layer` receives one draggable origin handle in the
+  play viewport. Missing, hidden, unloaded, invalid, and offscreen layers are
+  safe no-ops.
+- Reused existing `off_x/off_y` fields and background screen transform.
+  Drag deltas divide by zoom, making right/down movement intuitive. Existing
+  sliders and the handle remain bidirectionally synchronized without a new
+  schema or selection model.
+- Changed offsets persist through the existing settings path; the toggle is
+  not serialized. Original images, Aseprite files, project JSON, layer order,
+  camera, and actor transforms are not modified by gizmo logic.
+- Preserved Partner roster/T swap, Resource Role Assignment, SporeHeart pivot,
+  F5 position preservation, Placement labels, corpse actions, and sidebar
+  clipping.
+- 121 tests in 23 isolated modules, py_compile, sidebar UI check, and diff
+  whitespace validation passed. Aseprite/Example/LAYERS integration, full GUI,
+  packaging, commit, and tag were not run.
+
+## [v0.5.6.1 PARALLAX GIZMO AXIS LOCK + UNDO REDO - 2026-07-24, UNCOMMITTED]
+- Added distinct Free, X-only, and Y-only play-view handles. X/Y handles
+  preserve the opposite offset exactly; center drag remains two-axis.
+- Added temporary Shift dominant-axis locking for the center handle. Releasing
+  Shift restores Free behavior without splitting the drag history command.
+- Added a 100-command session-only parallax history using runtime layer
+  identity plus before/after offsets. New edits clear redo and stale deleted
+  layer commands are safe no-ops.
+- Gizmo drag and offset slider drag commit once on mouse-up; numeric X/Y offset
+  entry commits once on Enter. The app has no existing offset-reset action, so
+  none was invented for this maintenance step.
+- Added global `Ctrl+Z`, `Ctrl+Y`, and `Ctrl+Shift+Z`, while active text input
+  keeps priority. Undo/redo updates the same `off_x/off_y` and existing
+  settings path, immediately synchronizing sliders and the gizmo.
+- History, redo, drag-axis state, and gizmo visibility are not serialized.
+  Project/settings schemas, images, Aseprite files, paths, camera, actors, and
+  layer order remain unchanged.
+- Preserved grounded dash dust, Partner/T swap, SporeHeart alignment, F5
+  positions, role assignment, corpse actions, and sidebar clipping.
+- 138 tests across 25 isolated modules plus py_compile, sidebar UI check, and
+  diff whitespace validation passed. No Aseprite integration, full GUI,
+  packaging, commit, or tag was run.
+
+## [v0.5.7 GROUNDED INTRO SPAWN + NPC BEHAVIOR PROFILES - 2026-07-27, UNCOMMITTED]
+- Added an independent INTRO mapping with conservative spawn-tag aliases.
+  Action-specific Intro suffixes remain in their action flow instead of being
+  treated as spawn animation.
+- NPC/PROP spawn Y now resolves the nearest surface below the facing-relative
+  spawn X, with world-ground fallback. Intro begins from that grounded point,
+  preventing airborne emergence while preserving pivot/bottom alignment.
+- Added balanced, idle, follow, aggressive, guard, patrol, and flee behavior
+  policies. Behavior is read from the NPC profile every update and selected
+  through a localized AI & COMBAT cycle button.
+- Added optional profile `ai_behavior` persistence under existing schema 2.
+  Missing/invalid values fall back to balanced, with no settings or source
+  file changes.
+- Preserved Partner/T swap, role assignment, grounded dash dust, parallax
+  history/gizmo, SporeHeart alignment, F5 positions, corpse/PROP death, and
+  sidebar clipping.
+- 181 tests across 33 isolated modules plus pycompile, sidebar check, and diff
+  validation passed. Real SporeHeart runtime was unavailable because its
+  Aseprite fixture is absent; no Aseprite CLI, full GUI, packaging, commit, or
+  tag was run.
+
+## [v0.5.7.1 NPC COMBAT HITBOX + INTRO REPLAY + ATTACK LOCK - 2026-07-27, UNCOMMITTED]
+- Added NPC-only non-interruptible attack state, fixed facing, per-instance
+  hit guard, animation completion recovery, and 650ms cooldown.
+- Added authored Hit Slice priority with a ground-aligned forward 125x80
+  fallback active during normalized attack progress 35%-60%. One attack can
+  damage the Player once; missing Player/source/tag/frame data is safe.
+- Preserved existing behavior scope: balanced/aggressive/guard may attack;
+  idle/follow/patrol/flee do not. Every attacking policy shares the same lock
+  and cooldown.
+- Added localized Replay Intro below NPC behavior controls. Selected live NPC
+  wins, otherwise current-profile live NPCs are targeted. Replay does not
+  spawn, move, recount, save, or affect PROP/Partner. Attack-locked targets
+  are excluded with status.
+- Runtime combat/replay fields are not serialized. `ai_behavior`, independent
+  INTRO mapping, schema 2, source files, and settings remain unchanged.
+- Preserved grounded Intro spawning, Partner roster/T swap, SporeHeart pivot,
+  F5 positions, corpse handling, grounded dash dust, parallax axis/history,
+  and sidebar clipping in isolated regression modules.
+- TODO: Settings UI grouping/layout polish for AI & COMBAT, NPC behavior,
+  Intro replay, and future combat tuning controls.
+- Full GUI, Aseprite/Example/LAYERS integration, PyInstaller, release/ZIP,
+  commit, and tag were not run.
+
+## [v0.5.7.2 NPC COMBO + INTRO LOCK + DESPAWN + INPUT GUIDE - 2026-07-27, UNCOMMITTED]
+- Detect contiguous numeric ComboAttack chains beginning at 1, including
+  dynamic indices beyond 4. Gaps stop the chain; plain Attack is a one-hit
+  fallback and Intro/nonnumeric tags are excluded.
+- Keep one facing and attack lock across the full combo. Each segment owns a
+  fresh duration, 35%-60% active window, and one-hit guard. Cooldown begins
+  once after the final segment.
+- Ground-lock NPC/PROP spawn and replay Intro, suppress AI/action/jump
+  interruption, and reject duplicate replay while Intro is already active.
+- Add Scene Despawn for living NPC instances. Decrement the global target
+  count to prevent immediate automatic replenishment; retain source/profile
+  and use existing selection fallback. Corpse deletion stays separate.
+- Render a localized, current-mapping bottom key guide for all four sidebar
+  modes with narrow-width wrapping. F10 remains visible during debug overlay.
+- Preserve existing keyboard settings. Follow-up: generalized Fast Action
+  preset selector, controller detection/mapping, deadzone, dual input guide,
+  and preset persistence.
+- Preserve v0.5.7.1 combat, schema 2, Partner/T swap, pivot alignment, grounded
+  Intro/dash dust, position preservation, parallax history, and sidebar
+  clipping. No Aseprite CLI, full GUI, packaging, commit, or tag.
+- 126 targeted tests in 25 isolated modules, pycompile, common sidebar check,
+  and diff validation passed. Three known unrelated test modules remain:
+  layer scroll, empty-slice reason, and absent real SporeHeart fixture.
+
+## [v0.5.7.3 APP SHORTCUT GUIDE RESTORE + INPUT GUIDE SEPARATION - 2026-07-27, UNCOMMITTED]
+- Restored the pre-v0.5.7.2 program/editor hints whose input handlers were
+  still active: P, O, brackets, F5, F10, H, right-drag, and F.
+- Separated mapped Character controls from stable App/Editor shortcuts.
+  Character remapping no longer replaces or hides application hints, and an
+  empty key map still leaves the app guide visible.
+- Kept both localized groups in the common fixed HUD for Mapping, Settings,
+  Scene, and Resources. Group-aware wrapping protects minimum width and deep
+  scroll; F10 performance overlay retains the guide.
+- Limited future Fast Action presets to Player actions. Editor shortcuts and
+  user settings remain untouched. Controller support remains TODO.
+- Preserved v0.5.7.2 combo, Intro lock, Despawn, combat, Partner, pivot,
+  grounded dash dust, parallax undo/redo, and sidebar clipping.
+- 102 targeted tests in 21 modules plus pycompile, sidebar, and diff checks
+  passed. Per-file execution passed 59 modules with the same three known
+  unrelated failures.
+
+## [v0.5.7.4 CORPSE GROUND SNAP + DEATH STATE STABILIZATION - 2026-07-27, UNCOMMITTED]
+- Fixed airborne NPC corpses freezing because the corpse update branch zeroed
+  velocity and returned without NPC gravity/collision or death-time alignment.
+- Snap death at the current X to the nearest platform below the actor, with
+  world-ground fallback. Preserve X/spawn position and existing pivot/render
+  offsets; stabilize logical Y, velocity, and grounded state only.
+- Add an idempotent corpse-update safety repair for stale airborne states.
+  Correctly grounded corpses are unchanged, preventing animation jitter.
+- Clear Intro/Combo/Attack/hit/cooldown runtime before corpse action begins.
+  Death remains final priority and repeated calls do not duplicate corpses.
+- Preserve corpse deletion/filter/selection, F5 positions, Despawn separation,
+  PROP destruction, v0.5.7.3 guides, Combo/Intro, Partner, dash dust,
+  parallax undo/redo, pivot alignment, and sidebar clipping.
+- Corpse falling/ragdoll remains TODO; this hotfix intentionally prioritizes a
+  deterministic ground snap.
+- 135 targeted tests in 27 isolated modules plus pycompile, sidebar, and diff
+  checks passed. Per-file execution passed 61 modules with the same three
+  known unrelated failures.
+
+## [v0.5.7.5 SWAP VISIBILITY + GUIDE CLARITY + SAFE NPC RECALL - 2026-07-27, UNCOMMITTED]
+- Render swap-departure temp actors before the incoming Player so overlapping
+  Swap_Exit/Swap_Enter frames keep the controllable character visible.
+- Preserve normal NPC, PROP, assist-temp, Partner roster, and cleanup policies.
+- Show the live SYNERGY mapping in Character controls, including remaps and
+  safe omission when unmapped; do not alter synergy combat input or behavior.
+- Limit G recall to visible living NPCs. Preserve corpse/dead/PROP/Partner/temp
+  positions and show a localized safe no-target status.
+- Rename O to `1프레임 진행 / Step 1 frame` and add paused-animation help.
+- Preserve schema 2, user JSON, source resources, death/Intro/combo/despawn,
+  Parts/Particles, parallax, sidebar, and performance behavior.
+- Add focused tests and run source-only validation; no Aseprite CLI, full GUI,
+  packaging, release/ZIP, commit, or tag.
+- Keep Character/App grouping and commercial-name-free UI policy. Controller
+  detection/mapping and dual keyboard/gamepad hints remain TODO.
+- Protected `ase_project.json`, `ase_settings.json`, build/dist, and real
+  resources. Passed 108 targeted tests in 23 modules, pycompile, app/sidebar
+  checks, headless render, and diff check. Per-file run passed 65 modules /
+  367 tests with only the same three unrelated known failures.
+
+## [v0.5.8 SETTINGS UI/UX REORGANIZATION - 2026-07-27, UNCOMMITTED]
+- Replace the single eleven-category OPTIONS flow with a fixed six-section
+  session navigator: Quick, Input, AI / Combat, Background, View / Debug,
+  and Advanced.
+- Keep every legacy category and editor intact, but render/hit-test only the
+  categories assigned to the selected section. Reset per-section scroll and
+  pending text/key inputs to prevent stale hidden controls.
+- Separate fixed section navigation from clipped scrolling content/tooltips.
+  Preserve minimum-width, deep-scroll, Korean/English wrapping, and OPTIONS
+  return-state policy without adding a serialization field.
+- Add selection/workflow guidance, actual Character/App shortcuts, Synergy,
+  character-only Fast Action scope, controller TODO, AI/Intro/Combo/hitbox,
+  parallax/gizmo/history, view/debug, project/F5 guidance.
+- Preserve schema 2, user key map, AI behavior, T swap front, Partner roster,
+  G corpse filtering, O step label, Combo/Intro/Despawn/corpse snap,
+  SporeHeart pivot, grounded dash dust, and parallax undo/redo.
+- No Aseprite CLI, real resource integration, interactive GUI, packaging,
+  release/ZIP, commit, or tag. Protected user/build/resource files untouched.
+- Passed 133 tests in 31 targeted isolated modules, pycompile, app/sidebar
+  checks, and diff check. Per-file execution ran 383 tests; 71 modules passed
+  completely and only the same three known unrelated failing modules remain.
+
+## [v0.5.8.1 SETTINGS TAB CONSOLIDATION + HEADER ORDER - 2026-07-27, UNCOMMITTED]
+- Reorder the visible header to Tag Setup / Placement / Resources / Options
+  without changing internal sidebar mode values.
+- Replace six OPTIONS sections with three one-row tabs: Controls & App,
+  Scene & Combat, View & Background. Reduce fixed navigator height 76→42.
+- Move LANGUAGE+CONTROLS to Controls; NPCS+AI+PROPS+PHYSICS to Scene;
+  BG IMAGE+BG COLOR+CAMERA+LAYERS+VFX to View. Cover every legacy category
+  exactly once and expose no Quick/Advanced tab.
+- Migrate old session-only section values and keep schema 2/no section save.
+  Preserve scroll/input reset, clipping, tooltip and stale-hit protections.
+- Preserve key guides, Synergy/O, swap/Partner, recall/corpse, combat/Intro/
+  Despawn, dash/pivot and parallax behavior. Controller support remains TODO.
+- No Aseprite CLI, interactive GUI, packaging, release, commit, or tag;
+  protected user/build/resource files untouched.
+- Passed 125 tests in 30 targeted isolated modules, pycompile, app/sidebar and
+  diff checks. Per-file execution ran 391 tests; 73 modules passed completely
+  and only the same three known unrelated failing modules remain.
+
+## [v0.5.8.2 SETTINGS CONTROL RESET + TAB SEMANTICS + UI TEXT - 2026-07-27, UNCOMMITTED]
+- Add a Reset button beside every verified slider/numeric setting using one
+  shared layout and default policy; never infer an unknown default.
+- Route each Reset through existing settings persistence. Record background
+  Offset X/Y resets in parallax undo/redo while preserving the other axis.
+- Move LAYERS and JUICE & VFX to Scene & Combat. Keep View & Background
+  focused on BG IMAGE, BG COLOR, CAMERA, parallax, gizmo, and view guidance.
+- Remove the second normal-play dash charge renderer while retaining the
+  Player HUD indicator, Dash guide key, recharge logic, and grounded dust.
+- Localize Controls action labels without changing internal or stored key-map
+  keys. Add compact tab subtitles and actionable empty/invalid-state copy.
+- Keep exactly three settings tabs, header order, schema 2/session-only tab,
+  clipping/deep scroll, key guides, swap/recall/combat/Intro/corpse/Partner/
+  pivot/parallax regressions, and all protected user/build/resource files.
+- Do not run Aseprite CLI, full interactive GUI, packaging, release/ZIP,
+  commit, or tag.
+- Passed 146 tests in 35 targeted isolated modules plus pycompile, app/sidebar,
+  and diff checks. Full per-file execution ran 412 tests; 78/81 modules passed
+  and only the three known unrelated failures remained.
+
+## [v0.5.8.3 PRE-RELEASE CLEANUP + ICON BUILD - 2026-07-27, UNCOMMITTED]
+- Replace the three stale baseline failures with stable scroll semantics,
+  correct independent Slice mock setup, and optional-fixture skip behavior.
+- Pass all 81 independent modules / 412 tests with one SporeHeart integration
+  skip, plus source compile, app/sidebar checks, and diff check.
+- Convert 1024px RGBA Icon.png to six-size Icon.ico and connect it to the
+  one-file PyInstaller spec without adding application data files.
+- Preserve existing build/dist and create isolated icon build diagnostics.
+  RT_ICON and RT_GROUP_ICON are present in the resulting PE.
+- Block release packaging because this build runtime has broken Tcl
+  initialization, excludes tkinter, and the EXE checks do not terminate.
+  Do not create a release ZIP or approval hash until a healthy Tcl/Tk Python
+  environment produces exit code 0 for both executable checks.
+- Keep the interim build unsigned. Code signing/SmartScreen reputation remains
+  TODO; no signtool, Store/MSIX, Aseprite CLI, commit, or tag.
+
+## [v0.5.8.3.1 TCL/TK RUNTIME BUILD FIX - 2026-07-28, UNCOMMITTED]
+- Verify Python 3.12.13 tkinter and Tcl/Tk 8.6.12 independently before
+  rebuilding; classify the old failure as a restricted build-context hook
+  failure rather than a damaged Python installation.
+- Preserve the one-file/windowed/icon spec. Let PyInstaller 6.21.0 use its
+  standard `_tkinter` hook and runtime hook; do not add unnecessary manual
+  Tcl/Tk paths or a custom runtime hook.
+- Keep source checks strict for all nine repository examples. In a frozen
+  external-resource package, report 0/9 and verify Tcl through a withdrawn,
+  immediately destroyed Tk root without opening a dialog.
+- Pass 50 targeted tests in nine modules with the one optional SporeHeart
+  integration skip, plus pycompile, source app/sidebar checks, and diff check.
+- Build in `build_v0.5.8.3_tkfix2` / `dist_v0.5.8.3_tkfix2`; confirm Tcl/Tk
+  data, DLLs, standard runtime hook, icon copy, and exit code 0 for both EXE
+  smoke checks.
+- Package only EXE and public documentation after both checks pass. Keep the
+  old icon-final EXE blocked. Remain unsigned and perform no signing,
+  Store/MSIX, Aseprite CLI, interactive full GUI, commit, tag, or cleanup of
+  existing build/dist output.
+- Created `ase_viewer_v0.5.8.3_tkfix.zip` (17,907,557 bytes), SHA-256
+  `FC40F85DF40287302DABAD77CDDF4241CF86F9C00E9D4A2A781B741BD4BB9A3D`,
+  with a companion `.sha256`.
+
+## [v0.5.8.3 EXAMPLE RESOURCES BUNDLED BUILD - 2026-07-28, UNCOMMITTED]
+- Create a company-internal package with the already verified Tcl/Tk/icon EXE
+  plus only `resources/examples` as transparent external resources.
+- Include EX1, EX2, and shared: ten files / 2,790,927 bytes. Preserve Korean,
+  space, and `#` filenames and exclude every non-example resource.
+- Reuse the tkfix2 EXE without source/spec rebuild because frozen resource
+  lookup already supports the executable directory.
+- Require staging-directory EXE checks to report examples 9/9 and Tcl 8.6.12,
+  pass the sidebar check, open no dialog, and leave no process.
+- Pass packaged-path and example suites (16 tests), including actual EX2
+  preparation, six-layer render, hash validation, and failure atomicity.
+- Keep the examples-absent tkfix ZIP unchanged. Mark only the new
+  `with_examples` ZIP as the company-internal EX deployment candidate.
+- Remain unsigned and do not use Aseprite CLI, full GUI automation, signing,
+  Store/MSIX, commit, tag, or cleanup of existing outputs.
+- Created the approved-scope ZIP at 20,612,661 bytes, SHA-256
+  `7F5D7B75014CC355D5DC7D06499429B3BE7A3342FE8514871C4CE57622DD05B8`,
+  with a companion `.sha256`.
